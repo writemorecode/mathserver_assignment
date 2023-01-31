@@ -54,7 +54,6 @@ point_array_t *read_data(char *filename)
         fprintf(stdout, "Error: Could not open file '%s'.\n", filename);
         return NULL;
     }
-    // fprintf(stdout, "Successfully opened file '%s'.\n", filename);
 
     point_array_t *points = calloc(1, sizeof(point_array_t));
     if (points == NULL)
@@ -66,6 +65,7 @@ point_array_t *read_data(char *filename)
     points->data = calloc(points->capacity, sizeof(point_t));
     if (points->data == NULL)
     {
+        free(points);
         return NULL;
     }
 
@@ -94,10 +94,17 @@ point_array_t *read_data(char *filename)
         points->data[i].cluster = 0;
         i++;
     }
-
+    fclose(fp);
     points->size = i;
 
-    fclose(fp);
+    if(points->size == 0)
+    {
+        free(points->data);
+        free(points);
+        fprintf(stderr, "Error: Input file '%s' did not contain any points.\n", filename);
+        points = NULL;
+    }
+
     return points;
 }
 
@@ -113,6 +120,7 @@ point_array_t *init_clusters(point_array_t *points, size_t k)
     clusters->data = calloc(clusters->capacity, sizeof(point_t));
     if (clusters->data == NULL)
     {
+        free(clusters);
         return NULL;
     }
 
@@ -236,22 +244,25 @@ void *worker(void *arg)
     point_array_t *clusters = thr_arg->clusters;
     bool thread_finished = false;
 
-    for (int i = 0; i < 50000; i++)
+    while (*thr_arg->finished_threads < 4)
     {
-        printf("thread %ld thread_finished=%d finished_threads=%ld\n", thr_arg->thread_id, thread_finished, *thr_arg->finished_threads);
         thread_finished = assign_clusters_to_points(points, clusters, thr_arg->point_index_start,
                                                     thr_arg->point_index_end);
         pthread_barrier_wait(thr_arg->barrier);
+
         if(thread_finished)
         {
             pthread_mutex_lock(thr_arg->mutex);
             *thr_arg->finished_threads += 1;
             pthread_mutex_unlock(thr_arg->mutex);
         }
+
         barrier(thr_arg->mutex, thr_arg->barrier, thr_arg->finished_threads);
+
         update_cluster_centroids(points, clusters, thr_arg->point_index_start,
                                  thr_arg->point_index_end, thr_arg->cluster_index_start,
                                  thr_arg->cluster_index_end);
+
         barrier(thr_arg->mutex, thr_arg->barrier, thr_arg->finished_threads);
     }
 
@@ -312,9 +323,7 @@ void run(point_array_t *points, point_array_t *clusters)
 
     for (size_t i = 0; i < THREAD_COUNT; i++)
     {
-        printf("joining thread %ld\n", i);
         pthread_join(threads[i], NULL);
-        printf("joined thread %ld\n", i);
     }
 
     free(args);
@@ -366,6 +375,8 @@ int main(int argc, char **argv)
     point_array_t *clusters = init_clusters(points, k);
     if (clusters == NULL)
     {
+        free(points->data);
+        free(points);
         return EXIT_FAILURE;
     }
 
