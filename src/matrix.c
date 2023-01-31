@@ -10,7 +10,7 @@
 
 #include "../include/matrix.h"
 
-#define MAX_THREAD_COUNT 4
+#define THREAD_COUNT 4
 
 struct matrix *matrix_new(size_t n_)
 {
@@ -46,25 +46,25 @@ void matrix_free(struct matrix *mat)
  * Writes the matrix to file descriptor fp.
  * Set fp to stdout to write matrix to screen.
  */
-void matrix_write(struct matrix *mat, FILE *fp)
+void matrix_write(struct matrix *mat)
 {
     for (size_t i = 0; i < mat->n; i++)
     {
         for (size_t j = 0; j < mat->n; j++)
         {
-            fprintf(fp, "%0.4f", mat->data[i * mat->n + j]);
+            fprintf(stdout, "%0.1f", mat->data[i * mat->n + j]);
 
             if (j < mat->n)
             {
-                fprintf(fp, "\t");
+                fprintf(stdout, "\t");
             }
         }
         if (i < mat->n)
         {
-            fprintf(fp, "\n");
+            fprintf(stdout, "\n");
         }
     }
-    fprintf(fp, "\n");
+    fprintf(stdout, "\n");
 }
 
 /*
@@ -188,69 +188,24 @@ struct matrix *matrix_inverse(struct matrix *mat)
         for (row = 0; row < n; row++)
         {
             multiplier = mat->data[row * n + p];
-            if (row != p)
+            if (row == p)
             {
-                for (col = 0; col < n; col++)
-                {
-                    mat->data[row * n + col] -= mat->data[p * n + col] * multiplier;
-                    id->data[row * n + col] -= id->data[p * n + col] * multiplier;
-                }
+                continue;
+            }
+            for (col = 0; col < n; col++)
+            {
+                mat->data[row * n + col] -= mat->data[p * n + col] * multiplier;
+                id->data[row * n + col] -= id->data[p * n + col] * multiplier;
             }
         }
     }
     return id;
 }
 
-/*
-void *divide_row(void *arg)
-{
-    struct thread_arg *p = (struct thread_arg *)arg;
-    size_t n = p->M->n;
-    double pv;
-    size_t index;
-    for (size_t k = 0; k < p->count; k++)
-    {
-        pv = p->M->data[(p->r + k) * n + p->p];
-        for (size_t c = 0; c < n; c++)
-        {
-            index = (p->r + k) * n + c;
-            p->M->data[index] /= pv;
-            p->I->data[index] /= pv;
-        }
-    }
-}
 
-
-void *eliminate_forward(void *arg)
+void *worker(void *thr_arg)
 {
-    struct thread_arg *p = (struct thread_arg *)arg;
-    size_t n = p->M->n;
-    double multiplier;
-    for (size_t k = 0; k < p->count; k++)
-    {
-        multiplier = p->M->data[(p->r + k) * n + p->p];
-        for (size_t c = 0; c < n; c++)
-        {
-            p->M->data[(k + p->r) * n + c] -= p->M->data[p->p * n + c] * multiplier;
-            p->I->data[(k + p->r) * n + c] -= p->I->data[p->p * n + c] * multiplier;
-        }
-    }
-}
-
-void *eliminate_backward(void *arg)
-{
-    struct thread_arg *p = (struct thread_arg *)arg;
-    size_t n = p->M->n;
-    double multiplier;
-    for (size_t k = 0; k < p->count; k++)
-    {
-        multiplier = p->M->data[(p->r - k) * n + p->p];
-        for (size_t c = 0; c < n; c++)
-        {
-            p->M->data[(p->r - k) * n + c] -= p->M->data[p->p * n + c] * multiplier;
-            p->I->data[(p->r - k) * n + c] -= p->I->data[p->p * n + c] * multiplier;
-        }
-    }
+    return NULL;
 }
 
 struct matrix *matrix_inverse_parallel(struct matrix *M)
@@ -258,82 +213,38 @@ struct matrix *matrix_inverse_parallel(struct matrix *M)
     const size_t n = M->n;
     struct matrix *I = matrix_identity(n);
 
-    matrix_write(M, stdout);
+    pthread_t threads[THREAD_COUNT] = {0};
+    struct thread_arg args[THREAD_COUNT];
 
-    pthread_t threads[MAX_THREAD_COUNT] = {0};
-    struct thread_arg args[MAX_THREAD_COUNT];
+    size_t rows_per_thread = n / THREAD_COUNT;
+    size_t remainder = n % THREAD_COUNT;
 
-    for (size_t col = 0; col < n; col++)
+    pthread_barrier_t barrier;
+    pthread_barrier_init(&barrier, NULL, THREAD_COUNT);
+
+    for (size_t i = 0; i < THREAD_COUNT; i++)
     {
-        size_t row_count = n - col;
-        size_t rows_per_thread = n / MAX_THREAD_COUNT;
-        size_t remainder = n % MAX_THREAD_COUNT;
-        for (size_t i = 0; i < MAX_THREAD_COUNT; i++)
-        {
-            args[i].M = M;
-            args[i].I = I;
-            args[i].count = rows_per_thread;
-            args[i].r = col + i * rows_per_thread;
-            args[i].p = col;
-        }
-        if (remainder > 0)
-        {
-            args[MAX_THREAD_COUNT - 1].count += remainder;
-        }
-
-        for (size_t i = 0; i < MAX_THREAD_COUNT; i++)
-        {
-            pthread_create(&threads[i], NULL, divide_row, &args[i]);
-        }
-
-        for (size_t i = 0; i < MAX_THREAD_COUNT; i++)
-        {
-            pthread_join(threads[i], NULL);
-        }
-
-        row_count -= 1;
-        if (row_count == 0)
-        {
-            break;
-        }
-        rows_per_thread = n / MAX_THREAD_COUNT;
-        remainder = n % MAX_THREAD_COUNT;
-
-        for (size_t i = 0; i < MAX_THREAD_COUNT; i++)
-        {
-            args[i].count = rows_per_thread;
-            args[i].r = i * rows_per_thread + col + 1;
-            args[i].p = col;
-        }
-        if (remainder > 0)
-        {
-            args[0].count += remainder;
-        }
-
-        for (size_t i = 0; i < MAX_THREAD_COUNT; i++)
-        {
-            pthread_create(&threads[i], NULL, eliminate_forward, &args[i]);
-        }
-
-        for (size_t i = 0; i < MAX_THREAD_COUNT; i++)
-        {
-            pthread_join(threads[i], NULL);
-        }
+        args[i].M = M;
+        args[i].I = I;
+        args[i].row_start = rows_per_thread * i;
+        args[i].row_end = rows_per_thread * (i + 1);
+        args[i].thread_id = i;
+        args[i].barrier = &barrier;
+    }
+    if (remainder > 0)
+    {
+        args[THREAD_COUNT - 1].row_end += remainder;
     }
 
-    size_t current_row = n - 2;
-    for (size_t i = 1; i < n; i++)
+    for (size_t i = 0; i < THREAD_COUNT; i++)
     {
-        for (size_t j = 1; j < i + 1; j++)
-        {
-            args[0].r = current_row;
-            args[0].p = current_row + j;
-            args[0].count = 1;
-            eliminate_backward(&args[0]);
-        }
-        current_row -= 1;
+        pthread_create(&threads[i], NULL, worker, &args[i]);
+    }
+
+    for (size_t i = 0; i < THREAD_COUNT; i++)
+    {
+        pthread_join(threads[i], NULL);
     }
 
     return I;
 }
-*/

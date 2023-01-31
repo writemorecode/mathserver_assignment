@@ -15,6 +15,5 @@ struct string_array *string_array_new(size_t capacity_);
 void string_array_free(struct string_array *arr);
 void string_array_insert(struct string_array *arr, char *str);
 struct string_array *string_array_from_string(char *str, char *delim);
-char *strip_newline(char *s);
 
 #endif

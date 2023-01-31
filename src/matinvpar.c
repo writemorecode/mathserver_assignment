@@ -22,7 +22,7 @@ struct settings *read_settings(int argc, char **argv)
     settings->N = 5;
     settings->maxnum = 15.0;
     settings->fast = true;
-    settings->print = false;
+    settings->print = true;
     settings->filename = NULL;
 
     int opt;
@@ -103,16 +103,21 @@ int main(int argc, char **argv)
 
     if (settings->print == true)
     {
-        matrix_write(A, fp);
-    }
-    struct matrix *A_inv = matrix_inverse(A);
-    if (settings->print == true)
-    {
-        matrix_write(A_inv, fp);
+        printf("A:\n");
+        matrix_write(A);
+        printf("-------------------------------\n");
     }
 
-    matrix_free(A);
+    struct matrix *A_inv = foo(A);
+    matrix_write(A);
+    //matrix_write(A_inv);
+
+    //struct matrix *C = matrix_multiply(A_inv, A_copy);
+    //matrix_write(C);
+    //matrix_free(C);
+
     matrix_free(A_inv);
+    matrix_free(A);
     matrix_free(A_copy);
 
     if (fp != stdout)
