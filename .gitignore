@@ -1,0 +1,9 @@
+.vscode
+*.o
+*.so
+*.txt
+server
+client
+kmeanspar
+matinvpar
+
