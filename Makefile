@@ -8,10 +8,10 @@ clean_results:
 	rm -rf computed_results/*.txt
 
 server: src/server.c libarray.so libstringutils.so
-	$(CC) $(CFLAGS) -L . src/server.c -larray -lstringutils -o server -pthread 
+	$(CC) $(CFLAGS) -L . src/server.c -larray -lstringutils -o server -fsanitize=address
 
 client: src/client.c libstringutils.so
-	$(CC) $(CFLAGS) -L . src/client.c -lstringutils -o client
+	$(CC) $(CFLAGS) -L . src/client.c -lstringutils -o client -fsanitize=address
 
 matinvpar: src/matinvpar.c libmatrix.so
 	$(CC) -ggdb3 $^ -o matinvpar -pthread
@@ -30,3 +30,6 @@ libstringutils.so: string_utils.o
 
 libmatrix.so: matrix.o
 	$(CC) $(CFLAGS) -shared $^ -o $@
+
+testing: src/testing.c
+	$(CC) $(CFLAGS) -fsanitize=address $^ -o $@

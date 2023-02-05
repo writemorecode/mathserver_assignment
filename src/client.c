@@ -21,6 +21,34 @@
 #define BUF_LEN 4096
 #define EXIT_QUIT 1
 
+char *make_filename_string(const char *program)
+{
+    const char *fmt = "computed_results/%s_output_%s.txt";
+    char *random_string = random_alphanumeric_string(8);
+    const size_t total_len = snprintf(NULL, 0, fmt, program, random_string);
+    char *str = calloc(total_len + 1, sizeof(char));
+    snprintf(str, total_len + 1, fmt, program, random_string);
+    free(random_string);
+    return str;
+}
+
+char *get_program_name(char *command)
+{
+    if (command == NULL)
+    {
+        return NULL;
+    }
+    char *buf = calloc(strlen(command) + 1, sizeof(char));
+    strcpy(buf, command);
+    char *endptr = NULL;
+    char *p = strtok_r(buf, " ", &endptr);
+    if (p == NULL)
+    {
+        p = command;
+    }
+    return p;
+}
+
 int get_connect_socket(char *host, char *port)
 {
     struct addrinfo hints, *servinfo, *p;
@@ -88,6 +116,8 @@ int handle_command(int socket, char *buffer)
         return EXIT_QUIT;
     }
 
+    char *program_name = get_program_name(buffer);
+
     // Send command to server
     ssize_t send_ret = send(socket, buffer, send_len, 0);
     if (send_ret == -1)
@@ -140,19 +170,23 @@ int handle_command(int socket, char *buffer)
         }
         recv_total += recv_ret;
         printf("DEBUG: recieved %ld bytes, total %ld\n", recv_ret, recv_total);
+        printf("CMD OUTPUT: %s\n", buffer);
     }
 
-    printf("Server response:\n");
-    printf("%s\n", buffer);
-
-    FILE *fp = fopen("computed_results/out.txt", "w");
+    char *filename = make_filename_string(program_name);
+    FILE *fp = fopen(filename, "w");
     if (fp == NULL)
     {
         perror("fopen");
     }
-    
-    fwrite(buffer, sizeof(char), recv_total, fp);
+
+    size_t n = fwrite(buffer, sizeof(char), recv_total, fp);
     fclose(fp);
+
+    printf("Wrote %ld bytes to file '%s'.\n", n, filename);
+
+    free(program_name);
+    free(filename);
 
     return 0;
 }

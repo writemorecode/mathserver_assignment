@@ -23,6 +23,8 @@
 #include "../include/string_array.h"
 #include "../include/string_utils.h"
 
+#define GNU_SOURCE
+
 #define BACKLOG 10
 #define BUF_LEN 4096
 #define TIMEOUT 30 * 1000
@@ -31,17 +33,6 @@
 #define PIPE_WRITE_END 1
 
 #define EXIT_SHUTDOWN 2
-
-// char *make_filename_string(const char *program)
-// {
-//     const char *fmt = "computed_results/%s_output_%s.txt";
-//     char *random_string = random_alphanumeric_string(8);
-//     const size_t total_len = snprintf(NULL, 0, fmt, program, random_string);
-//     char *str = calloc(total_len + 1, sizeof(char));
-//     snprintf(str, total_len + 1, fmt, program, random_string);
-//     free(random_string);
-//     return str;
-// }
 
 int get_listen_socket(char *port)
 {
@@ -106,18 +97,15 @@ int get_listen_socket(char *port)
 
 int handle_command(int socket, char *buffer)
 {
-    strip_newline_from_end(buffer);
+    // strip_newline_from_end(buffer);
     printf("Recieved command: '%s'\n", buffer);
 
-    prepend_string(buffer, "./");
 
-    struct string_array *args = string_array_from_string(buffer, " ");
-
-    if (args->size < 1)
-    {
-        string_array_free(args);
-        return EXIT_FAILURE;
-    }
+    // if (args->size < 1)
+    // {
+    //     string_array_free(args);
+    //     return EXIT_FAILURE;
+    // }
 
     int pipefd[2];
     int status = pipe(pipefd);
@@ -138,11 +126,14 @@ int handle_command(int socket, char *buffer)
         dup2(pipefd[PIPE_WRITE_END], STDOUT_FILENO);
         close(pipefd[PIPE_WRITE_END]);
 
+        buffer = prepend_string(buffer, "./");
+        struct string_array *args = string_array_from_string(buffer, " ");
+
         int ret = execvp(args->data[0], args->data);
+        string_array_free(args);
         if (ret == -1)
         {
             perror("execvp");
-            string_array_free(args);
             exit(EXIT_FAILURE);
         }
         exit(EXIT_SUCCESS);
@@ -189,6 +180,7 @@ int handle_command(int socket, char *buffer)
         {
             break;
         }
+        printf("CMD OUTPUT: %s\n", solution_buffer);
         read_total += read_ret;
     }
 
@@ -212,7 +204,6 @@ int handle_command(int socket, char *buffer)
         send_total += send_ret;
     } while (send_total < read_total);
 
-    string_array_free(args);
     free(solution_buffer);
 
     return 0;
@@ -435,17 +426,18 @@ int main(int argc, char **argv)
     }
 
     int status;
-    if(daemon == false)
+    if (daemon == false)
     {
         run(strategy, port);
     }
-    else{
+    else
+    {
         pid_t pid_child = fork();
-        if(pid_child == 0)
+        if (pid_child == 0)
         {
             // Child
             pid_t pid_grandchild = fork();
-            if(pid_grandchild == 0)
+            if (pid_grandchild == 0)
             {
                 // Grandchild
                 printf("PID: %d\n", getppid());
@@ -453,7 +445,8 @@ int main(int argc, char **argv)
             }
             exit(EXIT_SUCCESS);
         }
-        else {
+        else
+        {
             waitpid(pid_child, &status, 0);
         }
     }

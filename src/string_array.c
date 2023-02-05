@@ -58,11 +58,6 @@ void string_array_insert(struct string_array *arr, char *cstr)
     arr->data[arr->size] = calloc(cstr_len + 1, sizeof(char));
     memcpy(arr->data[arr->size], cstr, cstr_len);
     arr->data[arr->size][cstr_len] = 0;
-
-    // In order to be able to use string_array with the exec() functions,
-    // we must place a NULL pointer at the end of the array.
-    arr->data[arr->size + 1] = NULL;
-
     arr->size += 1;
 }
 
@@ -81,7 +76,7 @@ struct string_array *string_array_from_string(char *str, char *delim)
     {
         return NULL;
     }
-    struct string_array *arr = string_array_new(0);
+    struct string_array *arr = string_array_new(1);
     string_array_insert(arr, token);
     while (token != NULL)
     {
@@ -91,5 +86,16 @@ struct string_array *string_array_from_string(char *str, char *delim)
             string_array_insert(arr, token);
         }
     }
+
+    // Add a NULL pointer to end of array
+    void *p = realloc(arr->data, sizeof(char*) * (arr->capacity + 1));
+    if(p == NULL)
+    {
+        perror("realloc");
+        return NULL;
+    }
+    arr->data = p;
+    arr->data[arr->size] = NULL;
+
     return arr;
 }

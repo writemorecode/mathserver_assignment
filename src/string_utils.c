@@ -25,11 +25,11 @@ char *random_alphanumeric_string(const size_t len)
     Returns a newly allocated string containing
     the string "str" prepended with "prefix".
 */
-void prepend_string(char *str, const char *prefix)
+char *prepend_string(char *str, const char *prefix)
 {
     if (str == NULL || prefix == NULL)
     {
-        return;
+        return NULL;
     }
     const size_t str_len = strlen(str);
     const size_t prefix_len = strlen(prefix);
@@ -38,9 +38,10 @@ void prepend_string(char *str, const char *prefix)
     char *ret = realloc(str, total_len + 1);
     if(ret == NULL)
     {
-        return;
+        return NULL;
     }
     str = ret;
+    ret = NULL;
 
     for(size_t i = 0; i < str_len; i++)
     {
@@ -53,6 +54,7 @@ void prepend_string(char *str, const char *prefix)
     }
 
     str[total_len] = 0;
+    return str;
 }
 
 /*

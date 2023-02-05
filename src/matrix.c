@@ -56,7 +56,7 @@ void matrix_write(struct matrix *mat)
 
             if (j < mat->n)
             {
-                fprintf(stdout, "\t");
+                fprintf(stdout, "    ");
             }
         }
         if (i < mat->n)

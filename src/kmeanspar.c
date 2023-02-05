@@ -331,16 +331,15 @@ void run(point_array_t *points, point_array_t *clusters)
 
 void write_results(point_array_t *points)
 {
-    FILE *fp = fopen("kmeans-results.txt", "w");
-    if (fp == NULL)
-    {
-        return;
-    }
+    // FILE *fp = fopen("kmeans-results.txt", "w");
+    //if (fp == NULL)
+    //{
+    //    return;
+    //}
     for (size_t i = 0; i < points->size; i++)
     {
-        fprintf(fp, "%.2f %.2f %ld\n", points->data[i].x, points->data[i].y, points->data[i].cluster);
+        fprintf(stdout, "%.2f %.2f %ld\n", points->data[i].x, points->data[i].y, points->data[i].cluster);
     }
-    fclose(fp);
 }
 
 int main(int argc, char **argv)
@@ -364,6 +363,12 @@ int main(int argc, char **argv)
                 return EXIT_FAILURE;
             }
         }
+    }
+
+    if(filename == NULL)
+    {
+        fprintf(stderr, "Error: Filename not specified.\n");
+        return EXIT_FAILURE;
     }
 
     point_array_t *points = read_data(filename);

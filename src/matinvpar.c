@@ -101,20 +101,11 @@ int main(int argc, char **argv)
 
     struct matrix *A_copy = matrix_copy(A);
 
-    if (settings->print == true)
-    {
-        printf("A:\n");
-        matrix_write(A);
-        printf("-------------------------------\n");
-    }
-
-    struct matrix *A_inv = foo(A);
     matrix_write(A);
-    //matrix_write(A_inv);
 
-    //struct matrix *C = matrix_multiply(A_inv, A_copy);
-    //matrix_write(C);
-    //matrix_free(C);
+    struct matrix *A_inv = matrix_inverse(A);
+
+    matrix_write(A_inv);
 
     matrix_free(A_inv);
     matrix_free(A);
