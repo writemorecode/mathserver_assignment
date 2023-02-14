@@ -91,6 +91,7 @@ struct string_array *string_array_from_string(char *str, char *delim)
     void *p = realloc(arr->data, sizeof(char*) * (arr->capacity + 1));
     if(p == NULL)
     {
+        string_array_free(arr);
         perror("realloc");
         return NULL;
     }
