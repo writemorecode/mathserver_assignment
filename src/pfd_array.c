@@ -38,7 +38,7 @@ void pfd_array_insert(struct pfd_array *p, int fd)
         }
         else
         {
-            p = ret;
+            p->data = ret;
         }
     }
 
