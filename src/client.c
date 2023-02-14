@@ -104,71 +104,82 @@ int get_connect_socket(char *host, char *port)
     return connect_socket;
 }
 
-int handle_command(int socket, char *buffer)
+int handle_command(int socket, char *command)
 {
-    size_t send_len = strlen(buffer);
-    if (buffer[send_len - 1] == '\n')
+    size_t send_len = strlen(command);
+    if (command[send_len - 1] == '\n')
     {
-        buffer[send_len - 1] = 0;
+        command[send_len - 1] = 0;
     }
 
-    if (strcmp(buffer, "quit") == 0)
+    if (strcmp(command, "quit") == 0)
     {
         fprintf(stdout, "Closing server connection.\n");
         send(socket, "quit", 4 + 1, 0);
         return EXIT_QUIT;
     }
 
-    if (strcmp(buffer, "shutdown") == 0)
+    if (strcmp(command, "shutdown") == 0)
     {
         fprintf(stdout, "Shutting down server.\n");
         send(socket, "shutdown", 8 + 1, 0);
         return EXIT_QUIT;
     }
 
-    char *program_name = get_program_name(buffer);
+    char *program_name = get_program_name(command);
 
     // Send command to server
-    ssize_t send_ret = send(socket, buffer, send_len, 0);
+    ssize_t send_ret = send(socket, command, send_len, 0);
     if (send_ret == -1)
     {
+        free(program_name);
         perror("send");
         return EXIT_FAILURE;
     }
 
     // Recieve length of solution data
     ssize_t solution_length = 0;
-    ssize_t buffer_length = BUF_LEN;
-    ssize_t recv_total = 0;
 
     ssize_t recv_ret = recv(socket, &solution_length, sizeof(size_t), 0);
     if (recv_ret == -1)
     {
+        free(program_name);
         printf("Error: Could not recieve length of solution data.");
         perror("recv");
         return EXIT_FAILURE;
     }
     printf("DEBUG: solution length: %ld\n", solution_length);
 
+    char *solution_buffer = calloc(solution_length, sizeof(char));
+    if (solution_buffer == NULL)
+    {
+        free(program_name);
+        perror("calloc");
+        return EXIT_FAILURE;
+    }
+
+    ssize_t solution_buffer_length = solution_length;
+    ssize_t recv_total = 0;
+
     // Recieve solution data
     while (recv_total < solution_length)
     {
-        if (recv_total >= buffer_length)
+        if (recv_total >= solution_buffer_length)
         {
-            char *ret = realloc(buffer, buffer_length * 2);
+            char *ret = realloc(solution_buffer, solution_buffer_length * 2);
             if (ret == NULL)
             {
                 perror("realloc");
-                exit(EXIT_FAILURE);
+                return EXIT_FAILURE;
             }
             else
             {
-                buffer = ret;
+                solution_buffer = ret;
             }
-            memset(buffer + recv_total, 0, buffer_length);
-            buffer_length *= 2;
+            memset(solution_buffer + recv_total, 0, solution_buffer_length);
+            solution_buffer_length *= 2;
         }
-        recv_ret = recv(socket, buffer, BUF_LEN, 0);
+        recv_ret = recv(socket, solution_buffer, BUF_LEN, 0);
         if (recv_ret == -1)
         {
             perror("read");
@@ -180,7 +191,6 @@ int handle_command(int socket, char *buffer)
         }
         recv_total += recv_ret;
         printf("DEBUG: recieved %ld bytes, total %ld\n", recv_ret, recv_total);
-        printf("CMD OUTPUT: %s\n", buffer);
     }
 
     char *filename = make_filename_string(program_name);
@@ -190,11 +200,12 @@ int handle_command(int socket, char *buffer)
         perror("fopen");
     }
 
-    size_t n = fwrite(buffer, sizeof(char), recv_total, fp);
+    size_t n = fwrite(solution_buffer, sizeof(char), recv_total, fp);
     fclose(fp);
 
     printf("Wrote %ld bytes to file '%s'.\n", n, filename);
 
+    free(solution_buffer);
     free(program_name);
     free(filename);
 
@@ -212,30 +223,33 @@ int main(int argc, char *argv[])
     int socket = get_connect_socket(argv[1], argv[2]);
     if (socket == -1)
     {
-        fprintf(stderr, "Failed to connect to server.");
+        fprintf(stderr, "Failed to connect to server.\n");
         return EXIT_FAILURE;
     }
     fprintf(stdout, "Connected to server.\n");
 
-    char *buffer_ptr;
+    char *command = calloc(BUF_LEN, sizeof(char));
+    char *command_ptr;
     while (1)
     {
-        char *buffer = calloc(BUF_LEN, sizeof(char));
         fprintf(stdout, "Enter a command: ");
-        buffer_ptr = fgets(buffer, BUF_LEN, stdin);
-        if (buffer_ptr == NULL)
+        command_ptr = fgets(command, BUF_LEN, stdin);
+        if (command_ptr == NULL)
         {
+            free(command);
             fprintf(stderr, "Error: fgets\n");
             break;
         }
 
-        int command_ret = handle_command(socket, buffer);
-        free(buffer);
+        int command_ret = handle_command(socket, command);
 
         if (command_ret == EXIT_QUIT)
         {
             break;
         }
+
+        memset(command, 0, BUF_LEN);
     }
     close(socket);
+    free(command);
 }

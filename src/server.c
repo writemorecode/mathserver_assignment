@@ -97,15 +97,7 @@ int get_listen_socket(char *port)
 
 int handle_command(int socket, char *buffer)
 {
-    // strip_newline_from_end(buffer);
     printf("Recieved command: '%s'\n", buffer);
-
-
-    // if (args->size < 1)
-    // {
-    //     string_array_free(args);
-    //     return EXIT_FAILURE;
-    // }
 
     int pipefd[2];
     int status = pipe(pipefd);
@@ -249,7 +241,6 @@ int handle_client(int socket)
     return ret;
 }
 
-// Run server using the fork strategy
 void fork_strategy(int server_socket)
 {
     struct sockaddr_storage client_addr;
