@@ -38,15 +38,25 @@ char *get_program_name(char *command)
     {
         return NULL;
     }
-    char *buf = calloc(strlen(command) + 1, sizeof(char));
-    strcpy(buf, command);
-    char *endptr = NULL;
-    char *p = strtok_r(buf, " ", &endptr);
-    if (p == NULL)
+    size_t program_name_length = 0;
+    char *first_space = strchr(command, ' ');
+    if (first_space == NULL)
     {
-        p = command;
+        program_name_length = strlen(command);
     }
-    return p;
+    else
+    {
+        program_name_length = first_space - command;
+    }
+
+    char *buf = calloc(program_name_length + 1, sizeof(char));
+    if (buf == NULL)
+    {
+        return NULL;
+    }
+    memcpy(buf, command, program_name_length);
+
+    return buf;
 }
 
 int get_connect_socket(char *host, char *port)
