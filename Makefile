@@ -1,35 +1,35 @@
 CC = gcc
 CFLAGS = -Wall -Werror -pedantic -ggdb3
 
+all: server client matinvpar kmeanspar
+
 clean: clean_results
 	rm -f server client kmeanspar matinvpar test *.so *.o
 
 clean_results:
 	rm -rf computed_results/*.txt
 
-server: src/server.c libarray.so libstringutils.so
-	$(CC) $(CFLAGS) -L . src/server.c -larray -lstringutils -o server -fsanitize=address
+server: src/server.c pfd_array.o string_array.o string_utils.o
+	$(CC) $(CFLAGS) $^ -o server -fsanitize=address
 
-client: src/client.c libstringutils.so
-	$(CC) $(CFLAGS) -L . src/client.c -lstringutils -o client -fsanitize=address
+client: src/client.c string_utils.o
+	$(CC) $(CFLAGS) $^ -o client -fsanitize=address
 
-matinvpar: src/matinvpar.c libmatrix.so
-	$(CC) -ggdb3 $^ -o matinvpar -pthread
+matinvpar: src/matinvpar.c matrix.o
+	$(CC) -ggdb3 $^ -o matinvpar -pthread -fsanitize=thread
 
 kmeanspar: src/kmeanspar.c
 	$(CC) -ggdb3 $^ -o kmeanspar -pthread -fsanitize=thread
 
-%.o: src/%.c
-	$(CC) $(CFLAGS) $^ -c -fPIC -o $@
+string_array.o: src/string_array.c
+	$(CC) $(CFLAGS) -c $^ -o $@
 
-libarray.so: string_array.o pfd_array.o
-	$(CC) $(CFLAGS) -shared $^ -o $@
+pfd_array.o: src/pfd_array.c
+	$(CC) $(CFLAGS) -c $^ -o $@
 
-libstringutils.so: string_utils.o
-	$(CC) $(CFLAGS) -shared $^ -o $@
+string_utils.o: src/string_utils.c
+	$(CC) $(CFLAGS) -c $^ -o $@
 
-libmatrix.so: matrix.o
-	$(CC) $(CFLAGS) -shared $^ -o $@
+matrix.o: src/matrix.c
+	$(CC) $(CFLAGS) -c $^ -o $@
 
-testing: src/testing.c
-	$(CC) $(CFLAGS) -fsanitize=address $^ -o $@
