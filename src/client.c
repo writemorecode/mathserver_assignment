@@ -192,6 +192,7 @@ int handle_command(int socket, char *command)
         printf("DEBUG: recieved %ld bytes, total %ld\n", recv_ret, recv_total);
     }
 
+    mkdir("computed_results");
     char *filename = make_filename_string(program_name);
     FILE *fp = fopen(filename, "w");
     if (fp == NULL)
