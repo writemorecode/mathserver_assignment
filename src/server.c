@@ -141,9 +141,11 @@ int handle_command(int socket, char *buffer)
 
     close(pipefd[PIPE_WRITE_END]);
 
+    // BUFFER ALLOCATED HERE, 4096 BYTES
     char *solution_buffer = calloc(BUF_LEN, sizeof(char));
-    ssize_t solution_buffer_len = BUF_LEN;
-    ssize_t read_ret = 0, read_total = 0;
+    size_t solution_buffer_len = BUF_LEN;
+    size_t read_total = 0;
+    ssize_t read_ret;
 
     while (1)
     {
@@ -159,10 +161,9 @@ int handle_command(int socket, char *buffer)
             {
                 solution_buffer = ret;
             }
-            memset(solution_buffer + read_total, 0, solution_buffer_len);
             solution_buffer_len *= 2;
         }
-        read_ret = read(pipefd[PIPE_READ_END], solution_buffer, BUF_LEN);
+        read_ret = read(pipefd[PIPE_READ_END], solution_buffer + read_total, BUF_LEN);
         if (read_ret == -1)
         {
             perror("read");
@@ -172,7 +173,6 @@ int handle_command(int socket, char *buffer)
         {
             break;
         }
-        printf("CMD OUTPUT: %s\n", solution_buffer);
         read_total += read_ret;
     }
 

@@ -176,10 +176,9 @@ int handle_command(int socket, char *command)
             {
                 solution_buffer = ret;
             }
-            memset(solution_buffer + recv_total, 0, solution_buffer_length);
             solution_buffer_length *= 2;
         }
-        recv_ret = recv(socket, solution_buffer, BUF_LEN, 0);
+        recv_ret = recv(socket, solution_buffer + recv_total, BUF_LEN, 0);
         if (recv_ret == -1)
         {
             perror("read");
