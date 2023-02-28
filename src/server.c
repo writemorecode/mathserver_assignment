@@ -141,7 +141,6 @@ int handle_command(int socket, char *buffer)
 
     close(pipefd[PIPE_WRITE_END]);
 
-    // BUFFER ALLOCATED HERE, 4096 BYTES
     char *solution_buffer = calloc(BUF_LEN, sizeof(char));
     size_t solution_buffer_len = BUF_LEN;
     size_t read_total = 0;
@@ -217,6 +216,14 @@ int handle_client(int socket)
         {
             perror("recv");
             exit(EXIT_FAILURE);
+        }
+
+        // The shortest command that can be sent to the server is "quit".
+        // Commands shorter than four characters shall be ignored.
+        if(recv_ret < 4)
+        {
+            free(buffer);
+            continue;
         }
 
         if (recv_ret > 4 && strncmp("quit", buffer, 4) == 0)
