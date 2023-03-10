@@ -97,7 +97,90 @@ int get_listen_socket(char *port)
 
 int handle_command(int socket, char *buffer)
 {
+    char *program_name = get_program_name(buffer);
     printf("Recieved command: '%s'\n", buffer);
+    printf("Program name: '%s'\n", program_name);
+    struct string_array *args = string_array_from_string(buffer, " ");
+
+    if (strcmp(program_name, "kmeanspar") == 0)
+    {
+
+        size_t input_data_size;
+        ssize_t recv_ret = recv(socket, &input_data_size, sizeof(input_data_size), 0);
+        if (recv_ret <= 0)
+        {
+            free(program_name);
+            string_array_free(args);
+            fprintf(stderr, "Error: Client failed to send size of input data.\n");
+            return EXIT_FAILURE;
+        }
+
+        char *input_data_buffer = calloc(input_data_size, sizeof(char));
+        if (input_data_buffer == NULL)
+        {
+            free(program_name);
+            perror("calloc");
+            return EXIT_FAILURE;
+        }
+
+        size_t recv_total = 0;
+        while (recv_total < input_data_size)
+        {
+            recv_ret = recv(socket, input_data_buffer + recv_total, BUF_LEN, 0);
+            if (recv_ret == -1)
+            {
+                free(program_name);
+                perror("recv");
+                break;
+            }
+            if (recv_ret == 0)
+            {
+                break;
+            }
+            recv_total += recv_ret;
+        }
+
+        char template[] = "kmeans-data-XXXXXX";
+        int temp_fd = mkstemp(template);
+        if (temp_fd == -1)
+        {
+            free(program_name);
+            perror("mkstemp");
+            return EXIT_FAILURE;
+        }
+        FILE *temp_fp = fdopen(temp_fd, "w");
+        if (temp_fp == NULL)
+        {
+            perror("fdopen");
+            free(program_name);
+            free(input_data_buffer);
+            string_array_free(args);
+        }
+        size_t write_total = 0;
+        size_t write_ret;
+        while (write_total < input_data_size)
+        {
+            write_ret = fwrite(input_data_buffer + write_total, sizeof(char), input_data_size - write_total, temp_fp);
+            if (write_ret == 0)
+            {
+                break;
+            }
+            write_total += write_ret;
+        }
+        fclose(temp_fp);
+        free(input_data_buffer);
+
+        for(size_t i = 0; i < args->size; i++)
+        {
+            if(strcmp(args->data[i], "-f") == 0 && args->size > i + 1)
+            {
+                free(args->data[i+1]);
+                args->data[i+1] = program_name;
+            }
+        }
+    }
+
+    free(program_name);    
 
     int pipefd[2];
     int status = pipe(pipefd);
@@ -117,9 +200,6 @@ int handle_command(int socket, char *buffer)
         close(pipefd[PIPE_READ_END]);
         dup2(pipefd[PIPE_WRITE_END], STDOUT_FILENO);
         close(pipefd[PIPE_WRITE_END]);
-
-        buffer = prepend_string(buffer, "./");
-        struct string_array *args = string_array_from_string(buffer, " ");
 
         int ret = execvp(args->data[0], args->data);
         string_array_free(args);
@@ -141,7 +221,8 @@ int handle_command(int socket, char *buffer)
 
     close(pipefd[PIPE_WRITE_END]);
 
-    // BUFFER ALLOCATED HERE, 4096 BYTES
+    string_array_free(args);
+
     char *solution_buffer = calloc(BUF_LEN, sizeof(char));
     size_t solution_buffer_len = BUF_LEN;
     size_t read_total = 0;
@@ -218,21 +299,6 @@ int handle_client(int socket)
             perror("recv");
             exit(EXIT_FAILURE);
         }
-
-        if (recv_ret > 4 && strncmp("quit", buffer, 4) == 0)
-        {
-            fprintf(stdout, "Client quit.\n");
-            free(buffer);
-            return EXIT_SUCCESS;
-        }
-
-        if (recv_ret > 8 && strncmp("shutdown", buffer, 8) == 0)
-        {
-            fprintf(stdout, "Shutting down server.\n");
-            free(buffer);
-            return EXIT_SHUTDOWN;
-        }
-
         handle_command(socket, buffer);
 
         free(buffer);
@@ -329,11 +395,6 @@ void poll_strategy(int server_socket)
                 else
                 {
                     int ret = handle_client(arr->data[i].fd);
-                    if (ret == EXIT_SHUTDOWN)
-                    {
-                        pfd_array_free(arr);
-                        return;
-                    }
                     pfd_array_remove(arr, i);
                 }
             }

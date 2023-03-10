@@ -17,7 +17,9 @@
 #include <unistd.h>
 
 #include "../include/string_utils.h"
+#include "../include/string_array.h"
 
+#define COMMAND_BUF_LEN 256
 #define BUF_LEN 4096
 #define EXIT_QUIT 1
 
@@ -32,32 +34,6 @@ char *make_filename_string(const char *program)
     return str;
 }
 
-char *get_program_name(char *command)
-{
-    if (command == NULL)
-    {
-        return NULL;
-    }
-    size_t program_name_length = 0;
-    char *first_space = strchr(command, ' ');
-    if (first_space == NULL)
-    {
-        program_name_length = strlen(command);
-    }
-    else
-    {
-        program_name_length = first_space - command;
-    }
-
-    char *buf = calloc(program_name_length + 1, sizeof(char));
-    if (buf == NULL)
-    {
-        return NULL;
-    }
-    memcpy(buf, command, program_name_length);
-
-    return buf;
-}
 
 int get_connect_socket(char *host, char *port)
 {
@@ -112,20 +88,6 @@ int handle_command(int socket, char *command)
         command[send_len - 1] = 0;
     }
 
-    if (strcmp(command, "quit") == 0)
-    {
-        fprintf(stdout, "Closing server connection.\n");
-        send(socket, "quit", 4 + 1, 0);
-        return EXIT_QUIT;
-    }
-
-    if (strcmp(command, "shutdown") == 0)
-    {
-        fprintf(stdout, "Shutting down server.\n");
-        send(socket, "shutdown", 8 + 1, 0);
-        return EXIT_QUIT;
-    }
-
     char *program_name = get_program_name(command);
 
     // Send command to server
@@ -135,6 +97,76 @@ int handle_command(int socket, char *command)
         free(program_name);
         perror("send");
         return EXIT_FAILURE;
+    }
+
+    char *input_filename = NULL;
+    // If sending a kmeans command, send input data to server
+    if (strcmp(program_name, "kmeanspar") == 0)
+    {
+        struct string_array *array = string_array_from_string(command, " ");
+        for (size_t i = 0; i < array->size; i++)
+        {
+            if (strcmp(array->data[i], "-f") == 0 && array->size > i + 1)
+            {
+                input_filename = array->data[i + 1];
+                break;
+            }
+        }
+
+        if(input_filename == NULL)
+        {
+            string_array_free(array);
+            return EXIT_FAILURE;
+        }
+
+        FILE *fp = fopen(input_filename, "r");
+        if (fp == NULL)
+        {
+            free(program_name);
+            perror("fopen");
+            return EXIT_FAILURE;
+        }
+
+        fseek(fp, 0, SEEK_END);
+        size_t input_data_size = ftell(fp);
+        rewind(fp);
+
+        char *input_buffer = calloc(input_data_size, sizeof(char));
+        if (input_buffer == NULL)
+        {
+            perror("calloc");
+            return EXIT_FAILURE;
+        }
+        size_t input_read_total = 0;
+        char *input_ret;
+        while (input_read_total < input_data_size)
+        {
+            input_ret = fgets(input_buffer + input_read_total, input_data_size - input_read_total, fp);
+            if (input_ret == NULL)
+            {
+                break;
+            }
+        }
+
+        send(socket, &input_data_size, sizeof(input_data_size), 0);
+        ssize_t send_total = 0;
+        do
+        {
+            send_ret = send(socket, input_buffer + send_total, input_read_total - send_total, 0);
+            if (send_ret == -1)
+            {
+                perror("send");
+                break;
+            }
+            if (send_ret == 0)
+            {
+                break;
+            }
+            send_total += send_ret;
+        } while (send_total < input_read_total);
+
+        free(input_buffer);
+        string_array_free(array);
     }
 
     // Recieve length of solution data
@@ -166,6 +198,8 @@ int handle_command(int socket, char *command)
     {
         if (recv_total >= solution_buffer_length)
         {
+            // should never happen
+            printf("CLIENT: Reallocating buffer!\n");
             char *ret = realloc(solution_buffer, solution_buffer_length * 2);
             if (ret == NULL)
             {
@@ -228,12 +262,16 @@ int main(int argc, char *argv[])
     }
     fprintf(stdout, "Connected to server.\n");
 
-    char *command = calloc(BUF_LEN, sizeof(char));
+    char *command = calloc(COMMAND_BUF_LEN, sizeof(char));
+    char *prefix = "./";
+    size_t prefix_length = strlen(prefix);
+    memcpy(command, prefix, prefix_length);
+
     char *command_ptr;
     while (1)
     {
         fprintf(stdout, "Enter a command: ");
-        command_ptr = fgets(command, BUF_LEN, stdin);
+        command_ptr = fgets(command + prefix_length, COMMAND_BUF_LEN - prefix_length, stdin);
         if (command_ptr == NULL)
         {
             free(command);
@@ -248,7 +286,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        memset(command, 0, BUF_LEN);
+        memset(command + prefix_length, 0, COMMAND_BUF_LEN - prefix_length);
     }
     close(socket);
     free(command);
