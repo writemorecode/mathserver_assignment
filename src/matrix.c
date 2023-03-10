@@ -256,9 +256,6 @@ struct matrix *matrix_inverse_parallel(struct matrix *M)
     size_t rows_per_thread = n / THREAD_COUNT;
     size_t remainder = n % THREAD_COUNT;
 
-    pthread_mutex_t mutex;
-    pthread_mutex_init(&mutex, NULL);
-
     pthread_barrier_t barrier;
     pthread_barrier_init(&barrier, NULL, THREAD_COUNT);
 
@@ -286,7 +283,6 @@ struct matrix *matrix_inverse_parallel(struct matrix *M)
         pthread_join(threads[i], NULL);
     }
 
-    pthread_mutex_destroy(&mutex);
     pthread_barrier_destroy(&barrier);
 
     return I;
