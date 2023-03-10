@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Werror -pedantic -ggdb3
+CFLAGS = -Wall -Werror -pedantic -ggdb3 -O2
 
 all: server client matinvpar kmeanspar
 
@@ -12,7 +12,7 @@ clean_results:
 server: src/server.c pfd_array.o string_array.o string_utils.o
 	$(CC) $(CFLAGS) $^ -o server -fsanitize=address
 
-client: src/client.c string_utils.o
+client: src/client.c string_utils.o string_array.o
 	$(CC) $(CFLAGS) $^ -o client -fsanitize=address
 
 matinvpar: src/matinvpar.c matrix.o
