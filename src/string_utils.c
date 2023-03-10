@@ -25,36 +25,27 @@ char *random_alphanumeric_string(const size_t len)
     Returns a newly allocated string containing
     the string "str" prepended with "prefix".
 */
-char *prepend_string(char *str, const char *prefix)
+void prepend_string(char *str, const char *prefix)
 {
     if (str == NULL || prefix == NULL)
     {
-        return NULL;
+        return;
     }
     const size_t str_len = strlen(str);
     const size_t prefix_len = strlen(prefix);
-    const size_t total_len = str_len + prefix_len;
 
-    char *ret = realloc(str, total_len + 1);
-    if(ret == NULL)
+    for (size_t i = 0; i < str_len; i++)
     {
-        return NULL;
-    }
-    str = ret;
-    ret = NULL;
-
-    for(size_t i = 0; i < str_len; i++)
-    {
-        str[total_len - 1 - i] = str[str_len - 1 - i];
+        for(size_t j = 0; j < prefix_len; j++)
+        {
+            str[str_len + j - i] = str[str_len - 1 - i];
+        }
     }
 
-    for(size_t i = 0; i < prefix_len; i++)
+    for (size_t i = 0; i < prefix_len; i++)
     {
         str[i] = prefix[i];
     }
-
-    str[total_len] = 0;
-    return str;
 }
 
 /*
@@ -72,4 +63,36 @@ void strip_newline_from_end(char *s)
     {
         s[s_len - 1] = 0;
     }
+}
+
+/*
+    Given a string containing a command, e.g.
+    "matinvpar -n 4" or "kmeanspar -k 3 -f kmeans-data.txt",
+    returns the name of the program, or NULL if not found.
+*/
+char *get_program_name(char *command)
+{
+    if (command == NULL)
+    {
+        return NULL;
+    }
+    size_t program_name_length = 0;
+    char *first_space = strchr(command, ' ');
+    if (first_space == NULL)
+    {
+        program_name_length = strlen(command);
+    }
+    else
+    {
+        program_name_length = first_space - command;
+    }
+
+    char *buf = calloc(program_name_length + 1, sizeof(char));
+    if (buf == NULL)
+    {
+        return NULL;
+    }
+    memcpy(buf, command, program_name_length);
+
+    return buf;
 }
