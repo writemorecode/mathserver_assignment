@@ -52,7 +52,7 @@ void matrix_write(struct matrix *mat)
     {
         for (size_t j = 0; j < mat->n; j++)
         {
-            fprintf(stdout, "%0.1f", mat->data[i * mat->n + j]);
+            fprintf(stdout, "%0.4f", mat->data[i * mat->n + j]);
 
             if (j < mat->n)
             {
@@ -95,11 +95,8 @@ struct matrix *matrix_random(size_t n_, size_t max)
         return NULL;
     }
 
-    unsigned int s;
-    FILE *fp = fopen("/dev/urandom", "r");
-    fread(&s, sizeof(s), 1, fp);
-    fclose(fp);
-    srand(s);
+    time_t t;
+    srand((unsigned) time(&t));
 
     for (size_t i = 0; i < mat->n; i++)
     {
