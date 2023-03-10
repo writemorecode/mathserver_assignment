@@ -51,7 +51,7 @@ point_array_t *read_data(char *filename)
     FILE *fp = fopen(filename, "r");
     if (fp == NULL)
     {
-        fprintf(stdout, "Error: Could not open file '%s'.\n", filename);
+        fprintf(stderr, "Error: Could not open file '%s'.\n", filename);
         return NULL;
     }
 
@@ -331,11 +331,6 @@ void run(point_array_t *points, point_array_t *clusters)
 
 void write_results(point_array_t *points)
 {
-    // FILE *fp = fopen("kmeans-results.txt", "w");
-    //if (fp == NULL)
-    //{
-    //    return;
-    //}
     for (size_t i = 0; i < points->size; i++)
     {
         fprintf(stdout, "%.2f %.2f %ld\n", points->data[i].x, points->data[i].y, points->data[i].cluster);
