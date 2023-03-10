@@ -7,6 +7,7 @@
 #include <time.h>
 #include <math.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "../include/matrix.h"
 
@@ -16,7 +17,7 @@ struct matrix *matrix_new(size_t n_)
 {
     struct matrix *mat = calloc(1, sizeof(struct matrix));
     mat->n = n_;
-    mat->data = calloc(n_ * n_, sizeof(double));
+    mat->data = calloc(n_ * n_, sizeof(MATRIX_TYPE));
     return mat;
 }
 
@@ -28,7 +29,7 @@ struct matrix *matrix_copy(struct matrix *mat)
     }
     size_t n = mat->n;
     struct matrix *copy = matrix_new(n);
-    memcpy(copy->data, mat->data, sizeof(double) * n * n);
+    memcpy(copy->data, mat->data, sizeof(MATRIX_TYPE) * n * n);
     return copy;
 }
 
@@ -104,11 +105,11 @@ struct matrix *matrix_random(size_t n_, size_t max)
         {
             if (i == j) /* diagonal dominance */
             {
-                mat->data[i * mat->n + j] = (double)(rand() % max) + 5.0;
+                mat->data[i * mat->n + j] = (MATRIX_TYPE)(rand() % max) + 5.0;
             }
             else
             {
-                mat->data[i * mat->n + j] = (double)(rand() % max) + 1.0;
+                mat->data[i * mat->n + j] = (MATRIX_TYPE)(rand() % max) + 1.0;
             }
         }
     }
@@ -169,7 +170,7 @@ struct matrix *matrix_inverse(struct matrix *mat)
 {
     size_t row, col, p;
     size_t n = mat->n;
-    double pv, multiplier;
+    MATRIX_TYPE pv, multiplier;
     struct matrix *id = matrix_identity(n);
 
     for (p = 0; p < n; p++)
@@ -199,9 +200,48 @@ struct matrix *matrix_inverse(struct matrix *mat)
     return id;
 }
 
-
 void *worker(void *thr_arg)
 {
+    struct thread_arg *arg = (struct thread_arg *)thr_arg;
+    struct matrix *M = arg->M;
+    struct matrix *I = arg->I;
+    size_t n = M->n;
+    size_t row_start = arg->row_start;
+    size_t row_end = arg->row_end;
+    pthread_barrier_t *barrier = arg->barrier;
+
+    for (size_t p = 0; p < n; p++)
+    {
+        // Is this thread responsible for handling the current pivot row?
+        if (row_start <= p && p < row_end)
+        {
+            // Divide i:th row by M[i,i].
+            MATRIX_TYPE pv = M->data[p * n + p];
+            for (size_t c = 0; c < n; c++)
+            {
+                M->data[p * n + c] /= pv;
+                I->data[p * n + c] /= pv;
+            }
+        }
+        pthread_barrier_wait(barrier);
+
+        // Eliminate all elements in i:th column above and below pivot element
+        for (size_t r = row_start; r < row_end; r++)
+        {
+            if (r == p)
+            {
+                continue;
+            }
+            MATRIX_TYPE mult = M->data[r * n + p];
+            // M[r] -= M[p] * mult
+            for (size_t c = 0; c < n; c++)
+            {
+                M->data[r * n + c] -= M->data[p * n + c] * mult;
+                I->data[r * n + c] -= I->data[p * n + c] * mult;
+            }
+        }
+    }
+
     return NULL;
 }
 
@@ -215,6 +255,9 @@ struct matrix *matrix_inverse_parallel(struct matrix *M)
 
     size_t rows_per_thread = n / THREAD_COUNT;
     size_t remainder = n % THREAD_COUNT;
+
+    pthread_mutex_t mutex;
+    pthread_mutex_init(&mutex, NULL);
 
     pthread_barrier_t barrier;
     pthread_barrier_init(&barrier, NULL, THREAD_COUNT);
@@ -243,5 +286,34 @@ struct matrix *matrix_inverse_parallel(struct matrix *M)
         pthread_join(threads[i], NULL);
     }
 
+    pthread_mutex_destroy(&mutex);
+    pthread_barrier_destroy(&barrier);
+
     return I;
+}
+/*
+    Returns true if matrices A and B are element-wise equal within a tolerance.
+*/
+bool matrix_equals(struct matrix *A, struct matrix *B, MATRIX_TYPE tolerance)
+{
+    if (A->n != B->n)
+    {
+        return false;
+    }
+    size_t n = A->n;
+
+    for (size_t i = 0; i < n * n; i++)
+    {
+        MATRIX_TYPE a = A->data[i];
+        MATRIX_TYPE b = B->data[i];
+        if (fabs(a - b) < tolerance)
+        {
+            continue;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    return true;
 }

@@ -299,6 +299,29 @@ int handle_client(int socket)
             perror("recv");
             exit(EXIT_FAILURE);
         }
+
+        // The shortest command that can be sent to the server is "quit".
+        // Commands shorter than four characters shall be ignored.
+        if(recv_ret < 4)
+        {
+            free(buffer);
+            continue;
+        }
+
+        if (recv_ret > 4 && strncmp("quit", buffer, 4) == 0)
+        {
+            fprintf(stdout, "Client quit.\n");
+            free(buffer);
+            return EXIT_SUCCESS;
+        }
+
+        if (recv_ret > 8 && strncmp("shutdown", buffer, 8) == 0)
+        {
+            fprintf(stdout, "Shutting down server.\n");
+            free(buffer);
+            return EXIT_SHUTDOWN;
+        }
+
         handle_command(socket, buffer);
 
         free(buffer);

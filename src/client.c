@@ -279,6 +279,11 @@ int main(int argc, char *argv[])
             break;
         }
 
+        if(strlen(command) == 1 && command[0] == '\n')
+        {
+            continue;
+        }
+
         int command_ret = handle_command(socket, command);
 
         if (command_ret == EXIT_QUIT)

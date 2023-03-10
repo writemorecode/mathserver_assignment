@@ -99,17 +99,14 @@ int main(int argc, char **argv)
         }
     }
 
-    struct matrix *A_copy = matrix_copy(A);
-
     matrix_write(A);
 
-    struct matrix *A_inv = matrix_inverse(A);
+    struct matrix *A_inv = matrix_inverse_parallel(A);
 
     matrix_write(A_inv);
 
-    matrix_free(A_inv);
     matrix_free(A);
-    matrix_free(A_copy);
+    matrix_free(A_inv);
 
     if (fp != stdout)
     {
