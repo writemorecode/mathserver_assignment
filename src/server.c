@@ -417,7 +417,7 @@ void poll_strategy(int server_socket)
                 }
                 else
                 {
-                    int ret = handle_client(arr->data[i].fd);
+                    handle_client(arr->data[i].fd);
                     pfd_array_remove(arr, i);
                 }
             }
