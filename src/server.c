@@ -170,17 +170,17 @@ int handle_command(int socket, char *buffer)
         fclose(temp_fp);
         free(input_data_buffer);
 
-        for(size_t i = 0; i < args->size; i++)
+        for (size_t i = 0; i < args->size; i++)
         {
-            if(strcmp(args->data[i], "-f") == 0 && args->size > i + 1)
+            if (strcmp(args->data[i], "-f") == 0 && args->size > i + 1)
             {
-                free(args->data[i+1]);
-                args->data[i+1] = program_name;
+                free(args->data[i + 1]);
+                args->data[i + 1] = program_name;
             }
         }
     }
 
-    free(program_name);    
+    free(program_name);
 
     int pipefd[2];
     int status = pipe(pipefd);
@@ -302,7 +302,7 @@ int handle_client(int socket)
 
         // The shortest command that can be sent to the server is "quit".
         // Commands shorter than four characters shall be ignored.
-        if(recv_ret < 4)
+        if (recv_ret < 4)
         {
             free(buffer);
             continue;

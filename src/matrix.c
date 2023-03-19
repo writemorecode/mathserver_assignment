@@ -97,7 +97,7 @@ struct matrix *matrix_random(size_t n_, size_t max)
     }
 
     time_t t;
-    srand((unsigned) time(&t));
+    srand((unsigned)time(&t));
 
     for (size_t i = 0; i < mat->n; i++)
     {

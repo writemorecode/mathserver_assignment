@@ -44,8 +44,6 @@ typedef struct thread_arg
     size_t *finished_threads;
 } thread_arg_t;
 
-
-
 point_array_t *read_data(char *filename)
 {
     FILE *fp = fopen(filename, "r");
@@ -97,7 +95,7 @@ point_array_t *read_data(char *filename)
     fclose(fp);
     points->size = i;
 
-    if(points->size == 0)
+    if (points->size == 0)
     {
         free(points->data);
         free(points);
@@ -227,7 +225,7 @@ void barrier(pthread_mutex_t *m, pthread_barrier_t *b, size_t *finished_threads)
 {
     pthread_barrier_wait(b);
     pthread_mutex_lock(m);
-    if(*finished_threads == THREAD_COUNT)
+    if (*finished_threads == THREAD_COUNT)
     {
         pthread_mutex_unlock(m);
         pthread_exit(NULL);
@@ -250,7 +248,7 @@ void *worker(void *arg)
                                                     thr_arg->point_index_end);
         pthread_barrier_wait(thr_arg->barrier);
 
-        if(thread_finished)
+        if (thread_finished)
         {
             pthread_mutex_lock(thr_arg->mutex);
             *thr_arg->finished_threads += 1;
@@ -360,7 +358,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if(filename == NULL)
+    if (filename == NULL)
     {
         fprintf(stderr, "Error: Filename not specified.\n");
         return EXIT_FAILURE;

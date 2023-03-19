@@ -36,7 +36,7 @@ void prepend_string(char *str, const char *prefix)
 
     for (size_t i = 0; i < str_len; i++)
     {
-        for(size_t j = 0; j < prefix_len; j++)
+        for (size_t j = 0; j < prefix_len; j++)
         {
             str[str_len + j - i] = str[str_len - 1 - i];
         }
