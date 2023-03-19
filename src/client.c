@@ -18,6 +18,7 @@
 
 #include "../include/string_utils.h"
 #include "../include/string_array.h"
+#include "../include/net.h"
 
 #define COMMAND_BUF_LEN 256
 #define BUF_LEN 4096
@@ -181,32 +182,9 @@ int handle_command(int socket, char *command)
     }
     printf("DEBUG: solution length: %ld\n", solution_length);
 
-    char *solution_buffer = calloc(solution_length, sizeof(char));
-    if (solution_buffer == NULL)
-    {
-        free(program_name);
-        perror("calloc");
-        return EXIT_FAILURE;
-    }
-
-    ssize_t solution_buffer_length = solution_length;
-    ssize_t recv_total = 0;
-
     // Recieve solution data
-    while (recv_total < solution_length)
-    {
-        recv_ret = recv(socket, solution_buffer + recv_total, BUF_LEN, 0);
-        if (recv_ret == -1)
-        {
-            perror("read");
-            break;
-        }
-        if (recv_ret == 0)
-        {
-            break;
-        }
-        recv_total += recv_ret;
-    }
+    char *solution_buffer = read_full(socket, solution_length);
+    size_t recv_total = solution_length;
 
     mkdir("computed_results", 0755);
     char *filename = make_filename_string(program_name);
