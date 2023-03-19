@@ -34,7 +34,6 @@ char *make_filename_string(const char *program)
     return str;
 }
 
-
 int get_connect_socket(char *host, char *port)
 {
     struct addrinfo hints, *servinfo, *p;
@@ -113,7 +112,7 @@ int handle_command(int socket, char *command)
             }
         }
 
-        if(input_filename == NULL)
+        if (input_filename == NULL)
         {
             string_array_free(array);
             return EXIT_FAILURE;
@@ -196,22 +195,6 @@ int handle_command(int socket, char *command)
     // Recieve solution data
     while (recv_total < solution_length)
     {
-        if (recv_total >= solution_buffer_length)
-        {
-            // should never happen
-            printf("CLIENT: Reallocating buffer!\n");
-            char *ret = realloc(solution_buffer, solution_buffer_length * 2);
-            if (ret == NULL)
-            {
-                perror("realloc");
-                return EXIT_FAILURE;
-            }
-            else
-            {
-                solution_buffer = ret;
-            }
-            solution_buffer_length *= 2;
-        }
         recv_ret = recv(socket, solution_buffer + recv_total, BUF_LEN, 0);
         if (recv_ret == -1)
         {
@@ -223,7 +206,6 @@ int handle_command(int socket, char *command)
             break;
         }
         recv_total += recv_ret;
-        printf("DEBUG: recieved %ld bytes, total %ld\n", recv_ret, recv_total);
     }
 
     mkdir("computed_results", 0755);
@@ -279,7 +261,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        if(strlen(command) == 1 && command[0] == '\n')
+        if (strlen(command) == 1 && command[0] == '\n')
         {
             continue;
         }
