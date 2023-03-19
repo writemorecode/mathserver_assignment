@@ -12,7 +12,7 @@ clean_results:
 server: src/server.c pfd_array.o string_array.o string_utils.o
 	$(CC) $(CFLAGS) $^ -o server -fsanitize=address
 
-client: src/client.c string_utils.o string_array.o
+client: src/client.c string_utils.o string_array.o net.o
 	$(CC) $(CFLAGS) $^ -o client -fsanitize=address
 
 matinvpar: src/matinvpar.c matrix.o
@@ -31,5 +31,8 @@ string_utils.o: src/string_utils.c
 	$(CC) $(CFLAGS) -c $^ -o $@
 
 matrix.o: src/matrix.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+net.o: src/net.c
 	$(CC) $(CFLAGS) -c $^ -o $@
 
