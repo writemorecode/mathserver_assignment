@@ -35,6 +35,31 @@ char *make_filename_string(const char *program)
     return str;
 }
 
+void write_server_response_to_file(char *buffer, size_t buffer_length)
+{
+    int ret = mkdir("computed_results", 0755);
+    if (ret != 0)
+    {
+        if (ret == EACCES)
+        {
+            fprintf(stderr, "Error: Denied permission for creating directory '%s'.\n");
+            return;
+        }
+    }
+
+    char *filename = make_filename_string(program_name);
+    FILE *fp = fopen(filename, "w");
+    if (fp == NULL)
+    {
+        perror("fopen");
+        free(filename);
+        return;
+    }
+    fwrite(buffer, sizeof(char), buffer_length, fp);
+    fclose(fp);
+    free(filename);
+}
+
 int get_connect_socket(char *host, char *port)
 {
     struct addrinfo hints, *servinfo, *p;
@@ -184,20 +209,8 @@ int handle_command(int socket, char *command)
 
     // Recieve solution data
     char *solution_buffer = read_full(socket, solution_length);
-    size_t recv_total = solution_length;
 
-    mkdir("computed_results", 0755);
-    char *filename = make_filename_string(program_name);
-    FILE *fp = fopen(filename, "w");
-    if (fp == NULL)
-    {
-        perror("fopen");
-    }
-
-    size_t n = fwrite(solution_buffer, sizeof(char), recv_total, fp);
-    fclose(fp);
-
-    printf("Wrote %ld bytes to file '%s'.\n", n, filename);
+    write_server_response_to_file(solution_buffer, solution_length);
 
     free(solution_buffer);
     free(program_name);
