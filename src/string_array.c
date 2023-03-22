@@ -54,10 +54,7 @@ void string_array_insert(struct string_array *arr, char *cstr)
         }
     }
 
-    size_t cstr_len = strlen(cstr);
-    arr->data[arr->size] = calloc(cstr_len + 1, sizeof(char));
-    memcpy(arr->data[arr->size], cstr, cstr_len);
-    arr->data[arr->size][cstr_len] = 0;
+    arr->data[arr->size] = cstr;
     arr->size += 1;
 }
 
@@ -100,3 +97,55 @@ struct string_array *string_array_from_string(char *str, char *delim)
 
     return arr;
 }
+
+size_t count_char_in_string(char *str, char c)
+{
+    size_t count = 0;
+    for(size_t i = 0; str[i] != '\0'; i++)
+    {
+        if (str[i] == c)
+        {
+            count++;
+        }
+    }
+    return count;
+}
+
+ssize_t find_next_char(char *str, char c)
+{
+    size_t i;
+    for(i = 0; str[i] != '\0'; i++)
+    {
+        if (str[i] == c)
+        {
+            break;
+        }
+    }
+    return i;
+}
+
+struct string_array *split_string(char *str, char delim)
+{
+    if (str == NULL)
+    {
+        return NULL;
+    }
+    size_t delim_count = count_char_in_string(str, delim);
+    size_t token_count = delim_count + 1;
+
+    struct string_array *arr = string_array_new(token_count + 1);
+
+    size_t i = 0;
+    while(i < strlen(str))
+    {
+        size_t next_delim_index = strcspn(str + i, " ");
+        char *buf = calloc(sizeof(char), next_delim_index + 1);
+        memcpy(buf, str + i, next_delim_index);
+        string_array_insert(arr, buf);
+        i += next_delim_index + 1;
+    }
+
+    arr->data[arr->size] = NULL;
+    return arr;
+}
+
