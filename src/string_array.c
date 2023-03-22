@@ -139,7 +139,7 @@ struct string_array *split_string(char *str, char delim)
     size_t i = 0;
     while(i < strlen(str))
     {
-        size_t next_delim_index = strcspn(str + i, " ");
+        size_t next_delim_index = strcspn(str + i, &delim);
         char *buf = calloc(sizeof(char), next_delim_index + 1);
         memcpy(buf, str + i, next_delim_index);
         string_array_insert(arr, buf);
