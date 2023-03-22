@@ -59,6 +59,7 @@ void string_array_insert(struct string_array *arr, char *cstr)
 }
 
 /*
+    DEPRECATED
     Constructs a string_array from tokens in "str" that are delimited by "delim".
 */
 struct string_array *string_array_from_string(char *str, char *delim)
