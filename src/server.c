@@ -100,7 +100,7 @@ int handle_command(int socket, char *buffer)
     char *program_name = get_program_name(buffer);
     printf("Recieved command: '%s'\n", buffer);
     printf("Program name: '%s'\n", program_name);
-    struct string_array *args = string_array_from_string(buffer, " ");
+    struct string_array *args = split_string(buffer, ' ');
 
     if (strcmp(program_name, "kmeanspar") == 0)
     {
