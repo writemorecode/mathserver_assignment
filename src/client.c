@@ -257,8 +257,14 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        int command_ret = handle_command(socket, command);
+        if (strncmp(buffer, "matinvpar", 9) != 0 && strncmp(buffer, "kmeanspar", 9) != 0)
+        {
+            fprintf(stderr, "Error: Invalid command received from client.\n");
+            free(buffer);
+            continue;
+        }
 
+        int command_ret = handle_command(socket, command);
         if (command_ret == EXIT_QUIT)
         {
             break;

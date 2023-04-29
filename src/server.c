@@ -264,7 +264,6 @@ int handle_command(int socket, char *buffer)
 
 int handle_client(int socket)
 {
-    int ret = 0;
     while (1)
     {
         char *buffer = calloc(BUF_LEN, sizeof(char));
@@ -280,10 +279,9 @@ int handle_client(int socket)
             exit(EXIT_FAILURE);
         }
 
-        // The shortest command that can be sent to the server is "quit".
-        // Commands shorter than four characters shall be ignored.
-        if (recv_ret < 4)
+        if (strncmp(buffer, "matinvpar", 9) != 0 && strncmp(buffer, "kmeanspar", 9) != 0)
         {
+            fprintf(stderr, "Error: Invalid command received from client.\n");
             free(buffer);
             continue;
         }
@@ -293,7 +291,7 @@ int handle_client(int socket)
         free(buffer);
     }
     close(socket);
-    return ret;
+    return 0;
 }
 
 void fork_strategy(int server_socket)
