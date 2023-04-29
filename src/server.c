@@ -33,8 +33,6 @@
 #define PIPE_READ_END 0
 #define PIPE_WRITE_END 1
 
-#define EXIT_SHUTDOWN 2
-
 int get_listen_socket(char *port)
 {
     int yes = 1;
@@ -288,20 +286,6 @@ int handle_client(int socket)
         {
             free(buffer);
             continue;
-        }
-
-        if (recv_ret > 4 && strncmp("quit", buffer, 4) == 0)
-        {
-            fprintf(stdout, "Client quit.\n");
-            free(buffer);
-            return EXIT_SUCCESS;
-        }
-
-        if (recv_ret > 8 && strncmp("shutdown", buffer, 8) == 0)
-        {
-            fprintf(stdout, "Shutting down server.\n");
-            free(buffer);
-            return EXIT_SHUTDOWN;
         }
 
         handle_command(socket, buffer);
