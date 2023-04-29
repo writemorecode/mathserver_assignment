@@ -239,23 +239,25 @@ int handle_command(int socket, char *buffer)
 
     // Send size of solution buffer to client
     ssize_t send_ret = send(socket, &read_total, sizeof(size_t), 0);
+    if (send_ret == -1)
+    {
+        free(program_name);
+        free(solution_buffer);
+        string_array_free(args);
+        fprintf(stderr, "Error: Failed to send size of solution data to client.\n");
+        return EXIT_FAILURE;
+    }
 
     // Send solution data to client
-    ssize_t send_total = 0;
-    do
+    int ret = write_full(socket, solution_buffer, read_total);
+    if (ret == -1)
     {
-        send_ret = send(socket, solution_buffer + send_total, read_total - send_total, 0);
-        if (send_ret == -1)
-        {
-            perror("send");
-            break;
-        }
-        if (send_ret == 0)
-        {
-            break;
-        }
-        send_total += send_ret;
-    } while (send_total < read_total);
+        free(program_name);
+        free(solution_buffer);
+        string_array_free(args);
+        fprintf(stderr, "Error: Failed to send solution data to client.\n");
+        return EXIT_FAILURE;
+    }
 
     free(solution_buffer);
 
