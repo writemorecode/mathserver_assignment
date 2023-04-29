@@ -19,6 +19,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "../include/net.h"
 #include "../include/pfd_array.h"
 #include "../include/string_array.h"
 #include "../include/string_utils.h"
@@ -115,67 +116,46 @@ int handle_command(int socket, char *buffer)
             return EXIT_FAILURE;
         }
 
-        char *input_data_buffer = calloc(input_data_size, sizeof(char));
+        char *input_data_buffer = read_full(socket, input_data_size);
         if (input_data_buffer == NULL)
         {
             free(program_name);
-            perror("calloc");
+            string_array_free(args);
+            fprintf(stderr, "Error: Client failed to send input data.\n");
             return EXIT_FAILURE;
         }
 
-        size_t recv_total = 0;
-        while (recv_total < input_data_size)
-        {
-            recv_ret = recv(socket, input_data_buffer + recv_total, BUF_LEN, 0);
-            if (recv_ret == -1)
-            {
-                free(program_name);
-                perror("recv");
-                break;
-            }
-            if (recv_ret == 0)
-            {
-                break;
-            }
-            recv_total += recv_ret;
-        }
-
+        // We create a temporary file that will be used as the input file for kmeanspar
         char template[] = "kmeans-data-XXXXXX";
         int temp_fd = mkstemp(template);
         if (temp_fd == -1)
         {
             free(program_name);
+            string_array_free(args);
             perror("mkstemp");
             return EXIT_FAILURE;
         }
-        FILE *temp_fp = fdopen(temp_fd, "w");
-        if (temp_fp == NULL)
+
+        int write_ret = write_full(temp_fd, input_data_buffer, input_data_size);
+        if (write_ret == -1)
         {
-            perror("fdopen");
             free(program_name);
             free(input_data_buffer);
             string_array_free(args);
+            fprintf(stderr, "Error: Failed to write input data to temporary file.\n");
+            return EXIT_FAILURE;
         }
-        size_t write_total = 0;
-        size_t write_ret;
-        while (write_total < input_data_size)
-        {
-            write_ret = fwrite(input_data_buffer + write_total, sizeof(char), input_data_size - write_total, temp_fp);
-            if (write_ret == 0)
-            {
-                break;
-            }
-            write_total += write_ret;
-        }
-        fclose(temp_fp);
+
+        close(temp_fd);
         free(input_data_buffer);
 
+        // Set the input file for kmeanspar to the temporary file
         for (size_t i = 0; i < args->size; i++)
         {
             if (strcmp(args->data[i], "-f") == 0 && args->size > i + 1)
             {
                 free(args->data[i + 1]);
-                args->data[i + 1] = program_name;
+                args->data[i + 1] = template;
             }
         }
     }
