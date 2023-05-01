@@ -127,7 +127,7 @@ int handle_command(int socket, char *command)
     // If sending a kmeans command, send input data to server
     if (strcmp(program_name, "kmeanspar") == 0)
     {
-        struct string_array *array = string_array_from_string(command, " ");
+        struct string_array *array = split_string(command, ' ');
         for (size_t i = 0; i < array->size; i++)
         {
             if (strcmp(array->data[i], "-f") == 0 && array->size > i + 1)
@@ -173,7 +173,7 @@ int handle_command(int socket, char *command)
         }
 
         send(socket, &input_data_size, sizeof(input_data_size), 0);
-        ssize_t send_total = 0;
+        size_t send_total = 0;
         do
         {
             send_ret = send(socket, input_buffer + send_total, input_read_total - send_total, 0);
@@ -257,10 +257,10 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        if (strncmp(buffer, "matinvpar", 9) != 0 && strncmp(buffer, "kmeanspar", 9) != 0)
+        if (strncmp(command, "matinvpar", 9) != 0 && strncmp(command, "kmeanspar", 9) != 0)
         {
-            fprintf(stderr, "Error: Invalid command received from client.\n");
-            free(buffer);
+            fprintf(stderr, "Error: Invalid command.\n");
+            free(command);
             continue;
         }
 
