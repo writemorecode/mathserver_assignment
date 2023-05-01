@@ -142,11 +142,11 @@ int handle_command(int socket, char *command)
             return EXIT_FAILURE;
         }
 
-        FILE *fp = fopen(input_filename, "r");
-        if (fp == NULL)
+        int fd = open(input_filename, O_RDONLY | O_CREAT, 0644);
+        if (fd == -1)
         {
             free(program_name);
-            perror("fopen");
+            perror("open");
             return EXIT_FAILURE;
         }
 
@@ -154,39 +154,26 @@ int handle_command(int socket, char *command)
         stat(input_filename, &st);
         size_t input_data_size = st.st_size;
 
-        char *input_buffer = calloc(input_data_size, sizeof(char));
+        char *input_buffer = read_full(fd, input_data_size);
         if (input_buffer == NULL)
         {
-            perror("calloc");
+            free(program_name);
+            free(input_buffer);
+            fprintf(stderr, "Error: Could not read input file '%s'.\n", input_filename);
             return EXIT_FAILURE;
         }
-        size_t input_read_total = 0;
-        char *input_ret;
-        while (input_read_total < input_data_size)
-        {
-            input_ret = fgets(input_buffer + input_read_total, input_data_size - input_read_total, fp);
-            if (input_ret == NULL)
-            {
-                break;
-            }
-        }
 
+        // Send length of input data to server
         send(socket, &input_data_size, sizeof(input_data_size), 0);
-        size_t send_total = 0;
-        do
+
+        int ret = write_full(socket, input_buffer, input_data_size);
+        if (ret == -1)
         {
-            send_ret = send(socket, input_buffer + send_total, input_read_total - send_total, 0);
-            if (send_ret == -1)
-            {
-                perror("send");
-                break;
-            }
-            if (send_ret == 0)
-            {
-                break;
-            }
-            send_total += send_ret;
-        } while (send_total < input_read_total);
+            free(program_name);
+            free(input_buffer);
+            fprintf(stderr, "Error: Could not send input data to server.\n");
+            return EXIT_FAILURE;
+        }
 
         free(input_buffer);
         string_array_free(array);
@@ -194,7 +181,6 @@ int handle_command(int socket, char *command)
 
     // Recieve length of solution data
     ssize_t solution_length = 0;
-
     ssize_t recv_ret = recv(socket, &solution_length, sizeof(size_t), 0);
     if (recv_ret == -1)
     {
@@ -207,6 +193,12 @@ int handle_command(int socket, char *command)
 
     // Recieve solution data
     char *solution_buffer = read_full(socket, solution_length);
+    if (solution_buffer == NULL)
+    {
+        free(program_name);
+        fprintf(stderr, "Error: Could not recieve solution data from server.\n");
+        return EXIT_FAILURE;
+    }
 
     char *filename = make_filename_string(program_name);
     write_server_response_to_file(filename, solution_buffer, solution_length);
