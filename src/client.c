@@ -150,9 +150,9 @@ int handle_command(int socket, char *command)
             return EXIT_FAILURE;
         }
 
-        fseek(fp, 0, SEEK_END);
-        size_t input_data_size = ftell(fp);
-        rewind(fp);
+        struct stat st;
+        stat(input_filename, &st);
+        size_t input_data_size = st.st_size;
 
         char *input_buffer = calloc(input_data_size, sizeof(char));
         if (input_buffer == NULL)
