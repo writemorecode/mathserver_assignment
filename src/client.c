@@ -22,7 +22,6 @@
 
 #define COMMAND_BUF_LEN 256
 #define BUF_LEN 4096
-#define EXIT_QUIT 1
 
 char *make_filename_string(const char *program)
 {
@@ -240,37 +239,37 @@ int main(int argc, char *argv[])
     size_t prefix_length = strlen(prefix);
     memcpy(command, prefix, prefix_length);
 
-    char *command_ptr;
+    char *ret;
+    char *p = command + prefix_length;
     while (1)
     {
         fprintf(stdout, "Enter a command: ");
-        command_ptr = fgets(command + prefix_length, COMMAND_BUF_LEN - prefix_length, stdin);
-        if (command_ptr == NULL)
+        ret = fgets(p, COMMAND_BUF_LEN - prefix_length, stdin);
+        if (ret == NULL)
         {
-            free(command);
             fprintf(stderr, "Error: fgets\n");
             break;
         }
 
-        if (strlen(command) == 1 && command[0] == '\n')
+        if (strlen(p) == 1 && p[0] == '\n')
         {
             continue;
         }
 
-        if (strncmp(command, "matinvpar", 9) != 0 && strncmp(command, "kmeanspar", 9) != 0)
+        if (strncmp(command, "./matinvpar", sizeof("./matinvpar") - 1) != 0 &&
+            strncmp(command, "./kmeanspar", sizeof("./kmeanspar") - 1) != 0)
         {
             fprintf(stderr, "Error: Invalid command.\n");
             free(command);
             continue;
         }
 
-        int command_ret = handle_command(socket, command);
-        if (command_ret == EXIT_QUIT)
+        if (handle_command(socket, command))
         {
             break;
         }
 
-        memset(command + prefix_length, 0, COMMAND_BUF_LEN - prefix_length);
+        memset(p, 0, COMMAND_BUF_LEN - prefix_length);
     }
     close(socket);
     free(command);
