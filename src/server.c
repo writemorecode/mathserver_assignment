@@ -279,7 +279,7 @@ int handle_client(int socket)
             exit(EXIT_FAILURE);
         }
 
-        if (strncmp(buffer, "matinvpar", 9) != 0 && strncmp(buffer, "kmeanspar", 9) != 0)
+        if (strncmp(buffer, "./matinvpar", 11) != 0 && strncmp(buffer, "./kmeanspar", 11) != 0)
         {
             fprintf(stderr, "Error: Invalid command received from client.\n");
             free(buffer);
