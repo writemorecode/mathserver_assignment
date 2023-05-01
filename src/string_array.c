@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #include "../include/string.h"
 #include "../include/string_array.h"
@@ -56,47 +57,6 @@ void string_array_insert(struct string_array *arr, char *cstr)
 
     arr->data[arr->size] = cstr;
     arr->size += 1;
-}
-
-/*
-    DEPRECATED
-    Constructs a string_array from tokens in "str" that are delimited by "delim".
-*/
-struct string_array *string_array_from_string(char *str, char *delim)
-{
-    if (str == NULL)
-    {
-        return NULL;
-    }
-    char *endptr;
-    char *token = strtok_r(str, delim, &endptr);
-    if (token == NULL)
-    {
-        return NULL;
-    }
-    struct string_array *arr = string_array_new(1);
-    string_array_insert(arr, token);
-    while (token != NULL)
-    {
-        token = strtok_r(NULL, delim, &endptr);
-        if (token != NULL)
-        {
-            string_array_insert(arr, token);
-        }
-    }
-
-    // Add a NULL pointer to end of array
-    void *p = realloc(arr->data, sizeof(char *) * (arr->capacity + 1));
-    if (p == NULL)
-    {
-        string_array_free(arr);
-        perror("realloc");
-        return NULL;
-    }
-    arr->data = p;
-    arr->data[arr->size] = NULL;
-
-    return arr;
 }
 
 size_t count_char_in_string(char *str, char c)
