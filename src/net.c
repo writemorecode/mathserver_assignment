@@ -32,3 +32,25 @@ char *read_full(int fd, size_t length)
 
     return buffer;
 }
+
+int write_full(int fd, char *buffer, size_t length)
+{
+    size_t write_total = 0;
+    ssize_t write_ret;
+    while (write_total < length)
+    {
+        write_ret = write(fd, buffer + write_total, length - write_total);
+        if (write_ret == -1)
+        {
+            perror("write");
+            break;
+        }
+        if (write_ret == 0)
+        {
+            break;
+        }
+        write_total += (size_t) write_ret;
+    }
+
+    return write_total;
+}
