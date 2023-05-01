@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Werror -pedantic -ggdb3 -O2
+CFLAGS = -Wall -Werror -Wextra -pedantic -ggdb3 -O2
 
 all: server client matinvpar kmeanspar
 
@@ -9,7 +9,7 @@ clean: clean_results
 clean_results:
 	rm -rf computed_results/*.txt
 
-server: src/server.c pfd_array.o string_array.o string_utils.o
+server: src/server.c pfd_array.o string_array.o string_utils.o net.o
 	$(CC) $(CFLAGS) $^ -o server -fsanitize=address
 
 client: src/client.c string_utils.o string_array.o net.o
@@ -21,18 +21,5 @@ matinvpar: src/matinvpar.c matrix.o
 kmeanspar: src/kmeanspar.c
 	$(CC) -ggdb3 $^ -o kmeanspar -pthread -fsanitize=thread
 
-string_array.o: src/string_array.c
+%.o: src/%.c
 	$(CC) $(CFLAGS) -c $^ -o $@
-
-pfd_array.o: src/pfd_array.c
-	$(CC) $(CFLAGS) -c $^ -o $@
-
-string_utils.o: src/string_utils.c
-	$(CC) $(CFLAGS) -c $^ -o $@
-
-matrix.o: src/matrix.c
-	$(CC) $(CFLAGS) -c $^ -o $@
-
-net.o: src/net.c
-	$(CC) $(CFLAGS) -c $^ -o $@
-
