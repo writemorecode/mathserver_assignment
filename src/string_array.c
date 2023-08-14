@@ -22,7 +22,7 @@ void string_array_free(struct string_array *arr)
         free(arr->data[i]);
     }
     // Free the terminating NULL pointer at end of array.
-    free(arr->data[arr->size]);
+    //// free(arr->data[arr->size]);
     free(arr->data);
     free(arr);
 }
@@ -97,9 +97,11 @@ struct string_array *split_string(char *str, char delim)
     struct string_array *arr = string_array_new(token_count + 1);
 
     size_t i = 0;
-    while(i < strlen(str))
+    size_t n = strlen(str);
+    while(i < n)
     {
-        size_t next_delim_index = strcspn(str + i, &delim);
+        //size_t next_delim_index = strcspn(str + i, &delim);
+        size_t next_delim_index = find_next_char(str + i, ' ');
         char *buf = calloc(sizeof(char), next_delim_index + 1);
         memcpy(buf, str + i, next_delim_index);
         string_array_insert(arr, buf);
