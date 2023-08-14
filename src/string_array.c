@@ -43,7 +43,7 @@ void string_array_insert(struct string_array *arr, char *cstr)
         {
             arr->capacity *= 2;
         }
-        void *ret = realloc(arr->data, sizeof(char *) * (arr->capacity + 1));
+        void *ret = realloc(arr->data, sizeof(char *) * arr->capacity);
         if (ret == NULL)
         {
             perror("realloc");
