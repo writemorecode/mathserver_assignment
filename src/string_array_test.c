@@ -88,10 +88,6 @@ bool split_string_test() {
         return false;
     }
 
-    for (size_t i = 0; i < arr->size; i++) {
-        fprintf(stdout, "'%s'\n", arr->data[i]);
-    }
-
     if (arr->size != 9) {
         fprintf(stderr, "FAIL: 'split_string' returned array with incorrect number of elements.\n");
         return false;
