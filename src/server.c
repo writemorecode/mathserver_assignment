@@ -28,10 +28,26 @@
 
 #define BACKLOG 10
 #define BUF_LEN 4096
+#define COMMAND_LEN 128
 #define TIMEOUT 30 * 1000
 
 #define PIPE_READ_END 0
 #define PIPE_WRITE_END 1
+
+int set_socket_nonblocking(int socket)
+{
+    int flags = fcntl(socket, F_GETFL, 0);
+    if (flags == -1) {
+        perror("fcntl");
+        return -1;
+    }
+
+    if (fcntl(socket, F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("fcntl");
+        return -1;
+    }
+    return 0;
+}
 
 int get_listen_socket(char *port)
 {
@@ -201,39 +217,8 @@ int handle_command(int socket, char *buffer)
 
     string_array_free(args);
 
-    char *solution_buffer = calloc(BUF_LEN, sizeof(char));
-    size_t solution_buffer_len = BUF_LEN;
     size_t read_total = 0;
-    ssize_t read_ret;
-
-    while (1)
-    {
-        if (read_total >= solution_buffer_len)
-        {
-            char *ret = realloc(solution_buffer, solution_buffer_len * 2);
-            if (ret == NULL)
-            {
-                perror("realloc");
-                exit(EXIT_FAILURE);
-            }
-            else
-            {
-                solution_buffer = ret;
-            }
-            solution_buffer_len *= 2;
-        }
-        read_ret = read(pipefd[PIPE_READ_END], solution_buffer + read_total, BUF_LEN);
-        if (read_ret == -1)
-        {
-            perror("read");
-            break;
-        }
-        if (read_ret == 0)
-        {
-            break;
-        }
-        read_total += read_ret;
-    }
+    char *solution_buffer = read_all(pipefd[PIPE_READ_END], &read_total);
 
     // Send size of solution buffer to client
     ssize_t send_ret = send(socket, &read_total, sizeof(size_t), 0);
@@ -344,8 +329,14 @@ void fork_strategy(int server_socket)
     }
 }
 
+
 void poll_strategy(int server_socket)
 {
+    int status = set_socket_nonblocking(server_socket);
+    if (status == -1) {
+        return;
+    }
+
     struct sockaddr_storage client_addr;
     socklen_t client_addr_size;
 
@@ -365,7 +356,8 @@ void poll_strategy(int server_socket)
         {
             if (arr->data[i].revents & POLLIN)
             {
-                if (arr->data[i].fd == server_socket)
+                int fd = arr->data[i].fd;
+                if (fd == server_socket)
                 {
                     client_addr_size = sizeof client_addr;
                     int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_addr_size);
@@ -381,8 +373,19 @@ void poll_strategy(int server_socket)
                 }
                 else
                 {
-                    handle_client(arr->data[i].fd);
-                    pfd_array_remove(arr, i);
+                    char *command = calloc(COMMAND_LEN + 1, sizeof(char));
+                    int n_recv = recv(fd, command, COMMAND_LEN, 0);
+                    if (n_recv <= 0) {
+                        if (n_recv == -1) {
+                            perror("recv");
+                        }
+                        pfd_array_remove(arr, i);
+                        close(fd);
+                        continue;
+                    }
+                    handle_command(fd, command);
+                    free(command);
+
                 }
             }
         }
