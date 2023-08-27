@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 
+char *read_all(int fd, size_t *n);
 char *read_full(int fd, size_t length);
 int write_full(int fd, char *buffer, size_t length);
 
