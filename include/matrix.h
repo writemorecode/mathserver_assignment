@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #define MATRIX_TYPE float
 
