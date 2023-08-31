@@ -96,3 +96,22 @@ char *get_program_name(char *command)
 
     return buf;
 }
+
+bool string_has_prefix(const char *str, const char *prefix)
+{
+    if (str == NULL || prefix == NULL) {
+        return false;
+    }
+
+    if (str == prefix) {
+        return true;
+    }
+
+    size_t prefix_len = strlen(prefix);
+
+    if (strncmp(str, prefix, prefix_len) == 0) {
+        return true;
+    }
+
+    return false;
+}

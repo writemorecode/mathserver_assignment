@@ -23,6 +23,11 @@
 #include "../include/pfd_array.h"
 #include "../include/string_array.h"
 #include "../include/string_utils.h"
+#include "../include/socket.h"
+#include "../include/command_handler.h"
+#include "../include/fork_handler.h"
+#include "../include/poll_handler.h"
+#include "../include/epoll_handler.h"
 
 #define GNU_SOURCE
 
@@ -31,374 +36,13 @@
 #define COMMAND_LEN 128
 #define TIMEOUT 30 * 1000
 
-#define PIPE_READ_END 0
-#define PIPE_WRITE_END 1
 
-int set_socket_nonblocking(int socket)
-{
-    int flags = fcntl(socket, F_GETFL, 0);
-    if (flags == -1) {
-        perror("fcntl");
-        return -1;
-    }
-
-    if (fcntl(socket, F_SETFL, flags | O_NONBLOCK) == -1) {
-        perror("fcntl");
-        return -1;
-    }
-    return 0;
-}
-
-int get_listen_socket(char *port)
-{
-    int yes = 1;
-    struct addrinfo hints, *servinfo, *p;
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
-    hints.ai_protocol = IPPROTO_TCP;
-    int status = getaddrinfo(NULL, port, &hints, &servinfo);
-    if (status != 0)
-    {
-        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-        return -1;
-    }
-
-    int listen_socket;
-    for (p = servinfo; p != NULL; p = servinfo->ai_next)
-    {
-        listen_socket = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (listen_socket == -1)
-        {
-            continue;
-        }
-
-        status = setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &yes, sizeof(int));
-        if (status == -1)
-        {
-            continue;
-        }
-
-        status = bind(listen_socket, p->ai_addr, p->ai_addrlen);
-        if (status == -1)
-        {
-            close(listen_socket);
-            continue;
-        }
-
-        break;
-    }
-
-    freeaddrinfo(servinfo);
-
-    if (p == NULL)
-    {
-        // Failed to bind a listen_socket
-        fprintf(stderr, "Failed to bind to a listen_socket.\n");
-        return -1;
-    }
-
-    status = listen(listen_socket, BACKLOG);
-    if (status == -1)
-    {
-        perror("listen");
-        return -1;
-    }
-
-    return listen_socket;
-}
-
-int handle_command(int socket, char *buffer)
-{
-    char *program_name = get_program_name(buffer);
-    printf("Recieved command: '%s'\n", buffer);
-    printf("Program name: '%s'\n", program_name);
-    struct string_array *args = split_string(buffer, ' ');
-
-    if (strcmp(program_name, "kmeanspar") == 0)
-    {
-
-        size_t input_data_size;
-        ssize_t recv_ret = recv(socket, &input_data_size, sizeof(input_data_size), 0);
-        if (recv_ret <= 0)
-        {
-            free(program_name);
-            string_array_free(args);
-            fprintf(stderr, "Error: Client failed to send size of input data.\n");
-            return EXIT_FAILURE;
-        }
-
-        char *input_data_buffer = read_full(socket, input_data_size);
-        if (input_data_buffer == NULL)
-        {
-            free(program_name);
-            string_array_free(args);
-            fprintf(stderr, "Error: Client failed to send input data.\n");
-            return EXIT_FAILURE;
-        }
-
-        // We create a temporary file that will be used as the input file for kmeanspar
-        char template[] = "kmeans-data-XXXXXX";
-        int temp_fd = mkstemp(template);
-        if (temp_fd == -1)
-        {
-            free(program_name);
-            string_array_free(args);
-            perror("mkstemp");
-            return EXIT_FAILURE;
-        }
-
-        int write_ret = write_full(temp_fd, input_data_buffer, input_data_size);
-        if (write_ret == -1)
-        {
-            free(program_name);
-            free(input_data_buffer);
-            string_array_free(args);
-            fprintf(stderr, "Error: Failed to write input data to temporary file.\n");
-            return EXIT_FAILURE;
-        }
-
-        close(temp_fd);
-        free(input_data_buffer);
-
-        // Set the input file for kmeanspar to the temporary file
-        for (size_t i = 0; i < args->size; i++)
-        {
-            if (strcmp(args->data[i], "-f") == 0 && args->size > i + 1)
-            {
-                free(args->data[i + 1]);
-                args->data[i + 1] = template;
-            }
-        }
-    }
-
-    free(program_name);
-
-    int pipefd[2];
-    int status = pipe(pipefd);
-    if (status == -1)
-    {
-        perror("pipe");
-    }
-
-    pid_t pid = fork();
-    if (pid < 0)
-    {
-        perror("fork");
-        return EXIT_FAILURE;
-    }
-    if (pid == 0)
-    {
-        close(pipefd[PIPE_READ_END]);
-        dup2(pipefd[PIPE_WRITE_END], STDOUT_FILENO);
-        close(pipefd[PIPE_WRITE_END]);
-
-        int ret = execvp(args->data[0], args->data);
-        string_array_free(args);
-        if (ret == -1)
-        {
-            perror("execvp");
-            exit(EXIT_FAILURE);
-        }
-        exit(EXIT_SUCCESS);
-    }
-    else
-    {
-        waitpid(pid, &status, 0);
-        if (WIFEXITED(status))
-        {
-            printf("DEBUG: Child exited with status %d\n", WEXITSTATUS(status));
-        }
-    }
-
-    close(pipefd[PIPE_WRITE_END]);
-
-    string_array_free(args);
-
-    size_t read_total = 0;
-    char *solution_buffer = read_all(pipefd[PIPE_READ_END], &read_total);
-
-    // Send size of solution buffer to client
-    ssize_t send_ret = send(socket, &read_total, sizeof(size_t), 0);
-    if (send_ret == -1)
-    {
-        free(program_name);
-        free(solution_buffer);
-        string_array_free(args);
-        fprintf(stderr, "Error: Failed to send size of solution data to client.\n");
-        return EXIT_FAILURE;
-    }
-
-    // Send solution data to client
-    int ret = write_full(socket, solution_buffer, read_total);
-    if (ret == -1)
-    {
-        free(program_name);
-        free(solution_buffer);
-        string_array_free(args);
-        fprintf(stderr, "Error: Failed to send solution data to client.\n");
-        return EXIT_FAILURE;
-    }
-
-    free(solution_buffer);
-
-    return 0;
-}
-
-int handle_client(int socket)
-{
-    while (1)
-    {
-        char *buffer = calloc(BUF_LEN, sizeof(char));
-        ssize_t recv_ret = recv(socket, buffer, BUF_LEN, 0);
-        if (recv_ret == 0)
-        {
-            fprintf(stdout, "Client closed connection to server.\n");
-            break;
-        }
-        else if (recv_ret == -1)
-        {
-            perror("recv");
-            exit(EXIT_FAILURE);
-        }
-
-        if (strncmp(buffer, "./matinvpar", 11) != 0 && strncmp(buffer, "./kmeanspar", 11) != 0)
-        {
-            fprintf(stderr, "Error: Invalid command received from client.\n");
-            free(buffer);
-            continue;
-        }
-
-        handle_command(socket, buffer);
-
-        free(buffer);
-    }
-    close(socket);
-    return 0;
-}
-
-void fork_strategy(int server_socket)
-{
-    struct sockaddr_storage client_addr;
-    socklen_t client_addr_size;
-
-    int client_socket, state;
-    pid_t pid;
-    while (1)
-    {
-        client_addr_size = sizeof client_addr;
-        client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_addr_size);
-        if (client_socket == -1)
-        {
-            perror("accept");
-            continue;
-        }
-
-        pid = fork();
-        if (pid < 0)
-        {
-            perror("fork");
-            exit(EXIT_FAILURE);
-        }
-
-        if (pid == 0)
-        {
-            // Child
-            pid = fork();
-            if (pid < 0)
-            {
-                perror("fork");
-                exit(EXIT_FAILURE);
-            }
-            if (pid == 0)
-            {
-                // Grandchild
-                handle_client(client_socket);
-            }
-            close(client_socket);
-            exit(EXIT_SUCCESS);
-        }
-        else
-        {
-            // Parent
-            waitpid(pid, &state, 0);
-            close(client_socket);
-        }
-    }
-}
-
-
-void poll_strategy(int server_socket)
-{
-    int status = set_socket_nonblocking(server_socket);
-    if (status == -1) {
-        return;
-    }
-
-    struct sockaddr_storage client_addr;
-    socklen_t client_addr_size;
-
-    struct pfd_array *arr = pfd_array_new(2);
-    pfd_array_insert(arr, server_socket);
-
-    while (1)
-    {
-        int poll_count = poll(arr->data, arr->count, TIMEOUT);
-        if (poll_count == -1)
-        {
-            perror("poll");
-            exit(EXIT_FAILURE);
-        }
-
-        for (size_t i = 0; i < arr->count; i++)
-        {
-            if (arr->data[i].revents & POLLIN)
-            {
-                int fd = arr->data[i].fd;
-                if (fd == server_socket)
-                {
-                    client_addr_size = sizeof client_addr;
-                    int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_addr_size);
-                    if (client_socket == -1)
-                    {
-                        perror("accept");
-                        continue;
-                    }
-                    printf("DEBUG: inserting fd %d into arr with size %ld capacity %ld\n", client_socket, arr->count, arr->capacity);
-                    pfd_array_insert(arr, client_socket);
-
-                    fprintf(stdout, "New connection recieved.\n");
-                }
-                else
-                {
-                    char *command = calloc(COMMAND_LEN + 1, sizeof(char));
-                    int n_recv = recv(fd, command, COMMAND_LEN, 0);
-                    if (n_recv <= 0) {
-                        if (n_recv == -1) {
-                            perror("recv");
-                        }
-                        pfd_array_remove(arr, i);
-                        close(fd);
-                        continue;
-                    }
-                    handle_command(fd, command);
-                    free(command);
-
-                }
-            }
-        }
-    }
-
-    pfd_array_free(arr);
-}
 
 enum Strategy
 {
     FORK,
-    MUXBASIC,
-    MUXSCALE
+    POLL,
+    EPOLL
 };
 
 void run(enum Strategy strategy, char *port)
@@ -408,7 +52,7 @@ void run(enum Strategy strategy, char *port)
     if (server_socket == -1)
     {
         fprintf(stderr, "Failed to create socket.\n");
-        exit(EXIT_FAILURE);
+        return;
     }
 
     fprintf(stdout, "Listening on port %s\n", port);
@@ -417,10 +61,26 @@ void run(enum Strategy strategy, char *port)
     {
         fork_strategy(server_socket);
     }
-    else if (strategy == MUXBASIC)
+    else if (strategy == POLL)
     {
         poll_strategy(server_socket);
     }
+    else if (strategy == EPOLL)
+    {
+        epoll_strategy(server_socket);
+    } else {
+        fprintf(stderr, "Error: Invalid concurrency option.\n");
+        return;
+    }
+}
+
+void print_usage() {
+    printf("Mathserver Options\n");
+    printf("-p\t\tPort to listen on.\n");
+    printf("-d\t\tRun server as daemon.\n");
+    printf("-s fork\t\tConcurrency using fork.\n");
+    printf("-s poll\t\tConcurrency using poll.\n");
+    printf("-s epoll\tConcurrency using epoll.\n");
 }
 
 int main(int argc, char **argv)
@@ -429,19 +89,14 @@ int main(int argc, char **argv)
     char *port = "5000";
     bool daemon = false;
     enum Strategy strategy;
-    strategy = MUXBASIC;
+    strategy = EPOLL;
 
     while ((opt = getopt(argc, argv, "hdp:s:")) != -1)
     {
         switch (opt)
         {
         case 'h':
-            printf("Mathserver Options\n");
-            printf("-p\t\tPort to listen on.\n");
-            printf("-d\t\tRun server as daemon.\n");
-            printf("-s fork\t\tConcurrency using fork.\n");
-            printf("-s muxbasic\tConcurrency using poll.\n");
-            printf("-s muxscale\tConcurrency using epoll.\n");
+            print_usage();
             return 0;
         case 'd':
             daemon = true;
@@ -454,13 +109,13 @@ int main(int argc, char **argv)
             {
                 strategy = FORK;
             }
-            else if (strcmp(optarg, "muxbasic") == 0)
+            else if (strcmp(optarg, "poll") == 0)
             {
-                strategy = MUXBASIC;
+                strategy = POLL;
             }
-            else if (strcmp(optarg, "muxscale") == 0)
+            else if (strcmp(optarg, "epoll") == 0)
             {
-                strategy = MUXSCALE;
+                strategy = EPOLL;
             }
         default:
             break;

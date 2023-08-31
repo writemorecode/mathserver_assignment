@@ -9,7 +9,7 @@ clean: clean_results
 clean_results:
 	rm -rf computed_results/*.txt
 
-server: src/server.c pfd_array.o string_array.o string_utils.o net.o
+server: src/server.c pfd_array.o string_array.o string_utils.o net.o command_handler.o fork_handler.o poll_handler.o epoll_handler.o socket.o
 	$(CC) $(CFLAGS) $^ -o server -fsanitize=address
 
 client: src/client.c string_utils.o string_array.o net.o
