@@ -16,40 +16,38 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "../include/string_utils.h"
-#include "../include/string_array.h"
 #include "../include/net.h"
+#include "../include/string_array.h"
+#include "../include/string_utils.h"
+#include "../include/command_handler.h"
 
 #define COMMAND_BUF_LEN 256
 #define BUF_LEN 4096
 
-char *make_filename_string(const char *program)
+char* make_filename_string(const char* program)
 {
-    const char *fmt = "computed_results/%s_output_%s.txt";
-    char *random_string = random_alphanumeric_string(8);
+    const char* fmt = "computed_results/%s_output_%s.txt";
+    char* random_string = random_alphanumeric_string(8);
     const size_t total_len = snprintf(NULL, 0, fmt, program, random_string);
-    char *str = calloc(total_len + 1, sizeof(char));
+    char* str = calloc(total_len + 1, sizeof(char));
     snprintf(str, total_len + 1, fmt, program, random_string);
     free(random_string);
     return str;
 }
 
-void write_server_response_to_file(char *filename, char *buffer, size_t buffer_length)
+void write_server_response_to_file(char* filename, char* buffer, size_t buffer_length)
 {
-    const char *directory_name = "computed_results";
+    const char* directory_name = "computed_results";
     int ret = mkdir(directory_name, 0755);
-    if (ret != 0)
-    {
-        if (ret == EACCES)
-        {
+    if (ret != 0) {
+        if (ret == EACCES) {
             fprintf(stderr, "Error: Denied permission to create directory '%s'.\n", directory_name);
             return;
         }
     }
 
-    FILE *fp = fopen(filename, "w");
-    if (fp == NULL)
-    {
+    FILE* fp = fopen(filename, "w");
+    if (fp == NULL) {
         perror("fopen");
         free(filename);
         return;
@@ -58,7 +56,7 @@ void write_server_response_to_file(char *filename, char *buffer, size_t buffer_l
     fclose(fp);
 }
 
-int get_connect_socket(char *host, char *port)
+int get_connect_socket(char* host, char* port)
 {
     struct addrinfo hints, *servinfo, *p;
     memset(&hints, 0, sizeof hints);
@@ -68,25 +66,21 @@ int get_connect_socket(char *host, char *port)
     hints.ai_flags = 0;
 
     int status = getaddrinfo(host, port, &hints, &servinfo);
-    if (status != 0)
-    {
+    if (status != 0) {
         fprintf(stderr, "Host not found: %s\n", host);
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
         return -1;
     }
 
     int connect_socket;
-    for (p = servinfo; p != NULL; p = servinfo->ai_next)
-    {
+    for (p = servinfo; p != NULL; p = servinfo->ai_next) {
         connect_socket = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (connect_socket == -1)
-        {
+        if (connect_socket == -1) {
             continue;
         }
 
         status = connect(connect_socket, p->ai_addr, p->ai_addrlen);
-        if (status == -1)
-        {
+        if (status == -1) {
             close(connect_socket);
             continue;
         }
@@ -94,8 +88,7 @@ int get_connect_socket(char *host, char *port)
     }
     freeaddrinfo(servinfo);
 
-    if (p == NULL)
-    {
+    if (p == NULL) {
         // Could not connect to server
         return -1;
     }
@@ -103,48 +96,41 @@ int get_connect_socket(char *host, char *port)
     return connect_socket;
 }
 
-int handle_command(int socket, char *command)
+int handle_command(int socket, char* command)
 {
     size_t send_len = strlen(command);
-    if (command[send_len - 1] == '\n')
-    {
+    if (command[send_len - 1] == '\n') {
         command[send_len - 1] = 0;
     }
 
-    char *program_name = get_program_name(command);
+    char* program_name = get_program_name(command);
 
     // Send command to server
     ssize_t send_ret = send(socket, command, send_len, 0);
-    if (send_ret == -1)
-    {
+    if (send_ret == -1) {
         free(program_name);
         perror("send");
         return EXIT_FAILURE;
     }
 
-    char *input_filename = NULL;
+    char* input_filename = NULL;
     // If sending a kmeans command, send input data to server
-    if (strcmp(program_name, "kmeanspar") == 0)
-    {
-        struct string_array *array = split_string(command, ' ');
-        for (size_t i = 0; i < array->size; i++)
-        {
-            if (strcmp(array->data[i], "-f") == 0 && array->size > i + 1)
-            {
+    if (strcmp(program_name, "kmeanspar") == 0) {
+        struct string_array* array = split_string(command, ' ');
+        for (size_t i = 0; i < array->size; i++) {
+            if (strcmp(array->data[i], "-f") == 0 && array->size > i + 1) {
                 input_filename = array->data[i + 1];
                 break;
             }
         }
 
-        if (input_filename == NULL)
-        {
+        if (input_filename == NULL) {
             string_array_free(array);
             return EXIT_FAILURE;
         }
 
         int fd = open(input_filename, O_RDONLY | O_CREAT, 0644);
-        if (fd == -1)
-        {
+        if (fd == -1) {
             free(program_name);
             perror("open");
             return EXIT_FAILURE;
@@ -154,9 +140,8 @@ int handle_command(int socket, char *command)
         stat(input_filename, &st);
         size_t input_data_size = st.st_size;
 
-        char *input_buffer = read_full(fd, input_data_size);
-        if (input_buffer == NULL)
-        {
+        char* input_buffer = read_full(fd, input_data_size);
+        if (input_buffer == NULL) {
             free(program_name);
             free(input_buffer);
             fprintf(stderr, "Error: Could not read input file '%s'.\n", input_filename);
@@ -167,8 +152,7 @@ int handle_command(int socket, char *command)
         send(socket, &input_data_size, sizeof(input_data_size), 0);
 
         int ret = write_full(socket, input_buffer, input_data_size);
-        if (ret == -1)
-        {
+        if (ret == -1) {
             free(program_name);
             free(input_buffer);
             fprintf(stderr, "Error: Could not send input data to server.\n");
@@ -182,8 +166,7 @@ int handle_command(int socket, char *command)
     // Recieve length of solution data
     ssize_t solution_length = 0;
     ssize_t recv_ret = recv(socket, &solution_length, sizeof(size_t), 0);
-    if (recv_ret == -1)
-    {
+    if (recv_ret == -1) {
         free(program_name);
         printf("Error: Could not recieve length of solution data.");
         perror("recv");
@@ -192,15 +175,14 @@ int handle_command(int socket, char *command)
     printf("DEBUG: solution length: %ld\n", solution_length);
 
     // Recieve solution data
-    char *solution_buffer = read_full(socket, solution_length);
-    if (solution_buffer == NULL)
-    {
+    char* solution_buffer = read_full(socket, solution_length);
+    if (solution_buffer == NULL) {
         free(program_name);
         fprintf(stderr, "Error: Could not recieve solution data from server.\n");
         return EXIT_FAILURE;
     }
 
-    char *filename = make_filename_string(program_name);
+    char* filename = make_filename_string(program_name);
     write_server_response_to_file(filename, solution_buffer, solution_length);
 
     free(solution_buffer);
@@ -210,54 +192,45 @@ int handle_command(int socket, char *command)
     return 0;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-    if (argc != 3)
-    {
+    if (argc != 3) {
         fprintf(stderr, "Usage: %s <address> <port>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     int socket = get_connect_socket(argv[1], argv[2]);
-    if (socket == -1)
-    {
+    if (socket == -1) {
         fprintf(stderr, "Failed to connect to server.\n");
         return EXIT_FAILURE;
     }
     fprintf(stdout, "Connected to server.\n");
 
-    char *command = calloc(COMMAND_BUF_LEN, sizeof(char));
-    char *prefix = "./";
+    char* command = calloc(COMMAND_BUF_LEN, sizeof(char));
+    char* prefix = "./";
     size_t prefix_length = strlen(prefix);
     memcpy(command, prefix, prefix_length);
 
-    char *ret;
-    char *p = command + prefix_length;
-    while (1)
-    {
+    char* ret;
+    char* p = command + prefix_length;
+    while (1) {
         fprintf(stdout, "Enter a command: ");
         ret = fgets(p, COMMAND_BUF_LEN - prefix_length, stdin);
-        if (ret == NULL)
-        {
+        if (ret == NULL) {
             fprintf(stderr, "Error: fgets\n");
             break;
         }
 
-        if (strlen(p) == 1 && p[0] == '\n')
-        {
+        if (strlen(p) == 1 && p[0] == '\n') {
             continue;
         }
 
-        if (strncmp(command, "./matinvpar", sizeof("./matinvpar") - 1) != 0 &&
-            strncmp(command, "./kmeanspar", sizeof("./kmeanspar") - 1) != 0)
-        {
+        if (!validate_command(command)) {
             fprintf(stderr, "Error: Invalid command.\n");
-            free(command);
             continue;
         }
 
-        if (handle_command(socket, command))
-        {
+        if (handle_command(socket, command)) {
             break;
         }
 
