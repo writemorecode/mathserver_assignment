@@ -1,9 +1,10 @@
-#include "../include/matrix.h"
 #include "../include/matrix_test.h"
+#include "../include/matrix.h"
 
-bool matrix_new_test() {
+bool matrix_new_test()
+{
     size_t N = 16;
-    struct matrix *M = matrix_new(N);
+    struct matrix* M = matrix_new(N);
     if (M == NULL) {
         fprintf(stderr, "FAIL: 'matrix_new' returned NULL.\n");
         return NULL;
@@ -24,9 +25,10 @@ bool matrix_new_test() {
     return true;
 }
 
-bool matrix_identity_test() {
+bool matrix_identity_test()
+{
     size_t N = 16;
-    struct matrix *I = matrix_identity(N);
+    struct matrix* I = matrix_identity(N);
 
     for (size_t i = 0; i < I->n; i++) {
         for (size_t j = 0; j < I->n; j++) {
@@ -38,7 +40,6 @@ bool matrix_identity_test() {
                 fprintf(stderr, "FAIL: 'matrix_identity' returned an invalid identity matrix.\n");
                 return false;
             }
-
         }
     }
 
@@ -47,20 +48,20 @@ bool matrix_identity_test() {
     return true;
 }
 
-
-bool matrix_inverse_test() {
+bool matrix_inverse_test()
+{
     size_t N = 16;
-    struct matrix *M = matrix_random(N, 256);
-    struct matrix *M_copy = matrix_copy(M);
+    struct matrix* M = matrix_random(N, 256);
+    struct matrix* M_copy = matrix_copy(M);
 
-    struct matrix *M_inv = matrix_inverse(M);
-    struct matrix *I = matrix_identity(N);
+    struct matrix* M_inv = matrix_inverse(M);
+    struct matrix* I = matrix_identity(N);
 
-    struct matrix *M_id = matrix_multiply(M_copy, M_inv);
+    struct matrix* M_id = matrix_multiply(M_copy, M_inv);
 
     if (matrix_equals(M_id, I, 0.01) == false) {
-        fprintf(stderr, "FAIL: 'matrix_inverse' did not correctly invert matrix.\n"); 
-    } 
+        fprintf(stderr, "FAIL: 'matrix_inverse' did not correctly invert matrix.\n");
+    }
 
     matrix_free(M);
     matrix_free(M_copy);
@@ -70,6 +71,3 @@ bool matrix_inverse_test() {
 
     return true;
 }
-
-
-

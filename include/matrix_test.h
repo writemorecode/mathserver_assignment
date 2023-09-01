@@ -1,5 +1,7 @@
-#ifndef MATRIX_H
-#define MATRIX_H
+#ifndef MATRIX_TEST_H
+#define MATRIX_TEST_H
+
+#include <stdbool.h>
 
 bool matrix_new_test();
 bool matrix_identity_test();

@@ -1,23 +1,22 @@
 #include <stdbool.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "../include/matrix.h"
 
-struct settings
-{
+struct settings {
     size_t N;
     double maxnum;
     bool fast;
     bool print;
-    char *filename;
+    char* filename;
 };
 
-struct settings *read_settings(int argc, char **argv)
+struct settings* read_settings(int argc, char** argv)
 {
-    struct settings *settings = calloc(1, sizeof(struct settings));
+    struct settings* settings = calloc(1, sizeof(struct settings));
 
     settings->N = 5;
     settings->maxnum = 15.0;
@@ -26,74 +25,50 @@ struct settings *read_settings(int argc, char **argv)
     settings->filename = NULL;
 
     int opt;
-    while ((opt = getopt(argc, argv, "n:m:I:P:o:")) != -1)
-    {
-        if (opt == 'n')
-        {
+    while ((opt = getopt(argc, argv, "n:m:I:P:o:")) != -1) {
+        if (opt == 'n') {
             settings->N = atoi(optarg);
-        }
-        else if (opt == 'm')
-        {
+        } else if (opt == 'm') {
             settings->maxnum = atof(optarg);
-        }
-        else if (opt == 'P')
-        {
-            if (strcmp(optarg, "1") == 0)
-            {
+        } else if (opt == 'P') {
+            if (strcmp(optarg, "1") == 0) {
                 settings->print = true;
-            }
-            else if (strcmp(optarg, "0") == 0)
-            {
+            } else if (strcmp(optarg, "0") == 0) {
                 settings->print = false;
             }
-        }
-        else if (opt == 'I')
-        {
-            if (strcmp(optarg, "fast") == 0)
-            {
+        } else if (opt == 'I') {
+            if (strcmp(optarg, "fast") == 0) {
                 settings->fast = true;
-            }
-            else if (strcmp(optarg, "rand") == 0)
-            {
+            } else if (strcmp(optarg, "rand") == 0) {
                 settings->fast = false;
             }
-        }
-        else if (opt == 'o')
-        {
+        } else if (opt == 'o') {
             settings->filename = strdup(optarg);
         }
     }
     return settings;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
-    struct settings *settings = read_settings(argc, argv);
-    if (settings == NULL)
-    {
+    struct settings* settings = read_settings(argc, argv);
+    if (settings == NULL) {
         return EXIT_FAILURE;
     }
 
-    struct matrix *A;
-    if (settings->fast == true)
-    {
+    struct matrix* A;
+    if (settings->fast == true) {
         A = matrix_create_fast(settings->N);
-    }
-    else
-    {
+    } else {
         A = matrix_random(settings->N, settings->maxnum);
     }
 
-    FILE *fp;
-    if (settings->filename == NULL)
-    {
+    FILE* fp;
+    if (settings->filename == NULL) {
         fp = stdout;
-    }
-    else
-    {
+    } else {
         fp = fopen(settings->filename, "w");
-        if (fp == NULL)
-        {
+        if (fp == NULL) {
             perror("fopen");
             exit(EXIT_FAILURE);
         }
@@ -101,15 +76,14 @@ int main(int argc, char **argv)
 
     matrix_write(A);
 
-    struct matrix *A_inv = matrix_inverse_parallel(A);
+    struct matrix* A_inv = matrix_inverse_parallel(A);
 
     matrix_write(A_inv);
 
     matrix_free(A);
     matrix_free(A_inv);
 
-    if (fp != stdout)
-    {
+    if (fp != stdout) {
         fclose(fp);
     }
 

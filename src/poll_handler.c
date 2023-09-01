@@ -1,13 +1,14 @@
+#include <errno.h>
 #include <poll.h>
-#include <sys/socket.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
+#include "../include/command_handler.h"
+#include "../include/pfd_array.h"
 #include "../include/poll_handler.h"
 #include "../include/socket.h"
-#include "../include/pfd_array.h"
-#include "../include/command_handler.h"
 
 #define COMMAND_LEN 128
 
@@ -21,52 +22,49 @@ void poll_strategy(int server_socket)
     struct sockaddr_storage client_addr;
     socklen_t client_addr_size;
 
-    struct pfd_array *arr = pfd_array_new(2);
+    struct pfd_array* arr = pfd_array_new(2);
     pfd_array_insert(arr, server_socket);
 
-    while (1)
-    {
-        int poll_count = poll(arr->data, arr->count, -1);
-        if (poll_count == -1)
-        {
+    while (true) {
+        if (poll(arr->data, arr->count, -1) == -1) {
             perror("poll");
             break;
         }
 
-        for (size_t i = 0; i < arr->count; i++)
-        {
-            if (arr->data[i].revents & POLLIN)
-            {
+        for (size_t i = 0; i < arr->count; i++) {
+            if (arr->data[i].revents & POLLERR) {
+                fprintf(stderr, "Error: (FD %d) revents = %d\n", arr->data[i].fd, arr->data[i].revents);
+                close(arr->data[i].fd);
+                continue;
+            }
+            if (arr->data[i].revents & POLLHUP) {
+                fprintf(stderr, "(FD %d) closed connection.\n", arr->data[i].fd);
+                close(arr->data[i].fd);
+                continue;
+            }
+            if (arr->data[i].revents & POLLIN) {
                 int fd = arr->data[i].fd;
-                if (fd == server_socket)
-                {
+                if (fd == server_socket) {
                     client_addr_size = sizeof client_addr;
-                    int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_addr_size);
-                    if (client_socket == -1)
-                    {
-                        perror("accept");
-                        continue;
-                    }
-                    printf("DEBUG: inserting fd %d into arr with size %ld capacity %ld\n", client_socket, arr->count, arr->capacity);
-                    pfd_array_insert(arr, client_socket);
-
-                    fprintf(stdout, "New connection recieved.\n");
-                }
-                else
-                {
-                    char *command = calloc(COMMAND_LEN + 1, sizeof(char));
-                    int n_recv = recv(fd, command, COMMAND_LEN, 0);
-                    if (n_recv <= 0) {
-                        if (n_recv == -1) {
-                            perror("recv");
+                    int client_socket = accept(server_socket, (struct sockaddr*)&client_addr, &client_addr_size);
+                    if (client_socket == -1) {
+                        // Since we are using non-blocking sockets, if accept() returns EWOULDBLOCK or EAGAIN,
+                        // then there are no connections waiting to be accepted. In this case, we can simply move on.
+                        if (errno != EWOULDBLOCK || errno != EAGAIN) {
+                            perror("accept");
+                            pfd_array_free(arr);
+                            return;
                         }
-                        pfd_array_remove(arr, i);
-                        close(fd);
+                    }
+                    pfd_array_insert(arr, client_socket);
+                    fprintf(stdout, "New connection accepted.\n");
+                } else {
+                    char* command = receive_command(fd);
+                    if (command == NULL) {
                         continue;
                     }
                     handle_command(fd, command);
                     free(command);
-
                 }
             }
         }

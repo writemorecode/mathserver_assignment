@@ -1,26 +1,36 @@
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include "../include/string_array_test.h"
-#include "../include/string_array.h"
 #include "../include/matrix_test.h"
-#include "../include/matrix.h"
+#include "../include/string_array_test.h"
+#include "../include/string_utils_test.h"
 
-int main() {
-    bool pass = true;
+typedef bool (*test_case)();
 
-    pass = string_array_new_test();
-    pass = string_array_insert_test();
-    pass = split_string_test();
+test_case tests[] = {
+    string_array_new_test,
+    string_array_insert_test,
+    append_string_test,
+    split_string_test,
+    matrix_new_test,
+    matrix_identity_test,
+    matrix_inverse_test,
+};
 
-    pass = matrix_new_test();
-    pass = matrix_identity_test();
-    pass = matrix_inverse_test();
 
-    if (pass) {
-        fprintf(stdout, "PASS\n");
+int main()
+{
+    const size_t N = sizeof(tests) / sizeof(test_case);
+
+    for (size_t i = 0; i < N; i++) {
+        if (tests[i]()) {
+            printf("PASS\n");
+        } else {
+            printf("FAIL\n");
+            break;
+        }
     }
 
 }

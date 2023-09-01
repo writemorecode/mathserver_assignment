@@ -24,5 +24,5 @@ kmeanspar: src/kmeanspar.c
 %.o: src/%.c
 	$(CC) $(CFLAGS) -c $^ -o $@
 
-test: src/test.c src/string_array_test.c string_array.o src/matrix_test.c matrix.o
+test: src/test.c src/string_array_test.c string_array.o src/matrix_test.c matrix.o src/string_utils_test.c string_utils.o
 	$(CC) $(CFLAGS) $^ -o test
