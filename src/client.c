@@ -19,7 +19,6 @@
 #include "../include/net.h"
 #include "../include/string_array.h"
 #include "../include/string_utils.h"
-#include "../include/command_handler.h"
 
 #define COMMAND_BUF_LEN 256
 #define BUF_LEN 4096
@@ -207,34 +206,23 @@ int main(int argc, char* argv[])
     fprintf(stdout, "Connected to server.\n");
 
     char* command = calloc(COMMAND_BUF_LEN, sizeof(char));
-    char* prefix = "./";
-    size_t prefix_length = strlen(prefix);
-    memcpy(command, prefix, prefix_length);
 
-    char* ret;
-    char* p = command + prefix_length;
     while (1) {
         fprintf(stdout, "Enter a command: ");
-        ret = fgets(p, COMMAND_BUF_LEN - prefix_length, stdin);
+        char *ret = fgets(command, COMMAND_BUF_LEN, stdin);
         if (ret == NULL) {
             fprintf(stderr, "Error: fgets\n");
             break;
         }
 
-        if (strlen(p) == 1 && p[0] == '\n') {
+        size_t n = strlen(command);
+        if (n == 1 && command[0] == '\n') {
             continue;
         }
 
-        if (!validate_command(command)) {
-            fprintf(stderr, "Error: Invalid command.\n");
-            continue;
-        }
+        handle_command(socket, command);
 
-        if (handle_command(socket, command)) {
-            break;
-        }
-
-        memset(p, 0, COMMAND_BUF_LEN - prefix_length);
+        memset(command, 0, n);
     }
     close(socket);
     free(command);

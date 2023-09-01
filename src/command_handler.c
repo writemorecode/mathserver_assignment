@@ -11,66 +11,57 @@
 #include <unistd.h>
 
 #include "../include/command_handler.h"
-#include "../include/string_utils.h"
-#include "../include/string_array.h"
 #include "../include/net.h"
+#include "../include/string_array.h"
+#include "../include/string_utils.h"
 
 #define PIPE_READ_END 0
 #define PIPE_WRITE_END 1
 #define COMMAND_LEN 128
 
-bool validate_command(char *command)
+bool validate_command(char* command)
 {
-    if (!string_has_prefix(command, "./matinvpar") &&
-        !string_has_prefix(command, "./kmeanspar"))
-    {
+    if (!string_has_prefix(command, "./matinvpar") && !string_has_prefix(command, "./kmeanspar")) {
         return false;
     }
     return true;
 }
 
-char *receive_command(int socket)
+char* receive_command(int socket)
 {
-        char *command = calloc(COMMAND_LEN + 1, sizeof(char));
-        ssize_t ret = recv(socket, command, COMMAND_LEN, 0);
-        if (ret == 0)
-        {
-            fprintf(stdout, "Client closed connection to server.\n");
-            free(command);
-            return NULL;
-        }
-        else if (ret == -1)
-        {
-            perror("recv");
-            free(command);
-            return NULL;
-        }
-        return command;
+    char* command = calloc(COMMAND_LEN + 1, sizeof(char));
+    ssize_t ret = recv(socket, command, COMMAND_LEN, 0);
+    if (ret == 0) {
+        fprintf(stdout, "Client closed connection to server.\n");
+        free(command);
+        return NULL;
+    } else if (ret == -1) {
+        perror("recv");
+        free(command);
+        return NULL;
+    }
+    return command;
 }
 
-int handle_command(int socket, char *buffer)
+int handle_command(int socket, char* buffer)
 {
-    char *program_name = get_program_name(buffer);
+    char* program_name = get_program_name(buffer);
     printf("Recieved command: '%s'\n", buffer);
-    printf("Program name: '%s'\n", program_name);
-    struct string_array *args = split_string(buffer, ' ');
+    struct string_array* args = split_string(buffer, ' ');
 
-    if (strcmp(program_name, "kmeanspar") == 0)
-    {
+    if (strcmp(program_name, "kmeanspar") == 0) {
 
         size_t input_data_size;
         ssize_t recv_ret = recv(socket, &input_data_size, sizeof(input_data_size), 0);
-        if (recv_ret <= 0)
-        {
+        if (recv_ret <= 0) {
             free(program_name);
             string_array_free(args);
             fprintf(stderr, "Error: Client failed to send size of input data.\n");
             return EXIT_FAILURE;
         }
 
-        char *input_data_buffer = read_full(socket, input_data_size);
-        if (input_data_buffer == NULL)
-        {
+        char* input_data_buffer = read_full(socket, input_data_size);
+        if (input_data_buffer == NULL) {
             free(program_name);
             string_array_free(args);
             fprintf(stderr, "Error: Client failed to send input data.\n");
@@ -80,8 +71,7 @@ int handle_command(int socket, char *buffer)
         // We create a temporary file that will be used as the input file for kmeanspar
         char template[] = "kmeans-data-XXXXXX";
         int temp_fd = mkstemp(template);
-        if (temp_fd == -1)
-        {
+        if (temp_fd == -1) {
             free(program_name);
             string_array_free(args);
             perror("mkstemp");
@@ -89,8 +79,7 @@ int handle_command(int socket, char *buffer)
         }
 
         int write_ret = write_full(temp_fd, input_data_buffer, input_data_size);
-        if (write_ret == -1)
-        {
+        if (write_ret == -1) {
             free(program_name);
             free(input_data_buffer);
             string_array_free(args);
@@ -102,51 +91,48 @@ int handle_command(int socket, char *buffer)
         free(input_data_buffer);
 
         // Set the input file for kmeanspar to the temporary file
-        for (size_t i = 0; i < args->size; i++)
-        {
-            if (strcmp(args->data[i], "-f") == 0 && args->size > i + 1)
-            {
+        for (size_t i = 0; i < args->size; i++) {
+            if (strcmp(args->data[i], "-f") == 0 && args->size > i + 1) {
                 free(args->data[i + 1]);
                 args->data[i + 1] = template;
             }
         }
     }
 
+    // Append "./" to the program name, so that it can be found by execvp
+    char *dot_slash = strdup("./");
+    free(args->data[0]);
+    args->data[0] = append_string(dot_slash, program_name);
     free(program_name);
+
+    fprintf(stdout, "debug: arg[0] '%s'\n", args->data[0]);
 
     int pipefd[2];
     int status = pipe(pipefd);
-    if (status == -1)
-    {
+    if (status == -1) {
         perror("pipe");
     }
 
     pid_t pid = fork();
-    if (pid < 0)
-    {
+    if (pid < 0) {
         perror("fork");
         return EXIT_FAILURE;
     }
-    if (pid == 0)
-    {
+    if (pid == 0) {
         close(pipefd[PIPE_READ_END]);
         dup2(pipefd[PIPE_WRITE_END], STDOUT_FILENO);
         close(pipefd[PIPE_WRITE_END]);
 
         int ret = execvp(args->data[0], args->data);
         string_array_free(args);
-        if (ret == -1)
-        {
+        if (ret == -1) {
             perror("execvp");
             exit(EXIT_FAILURE);
         }
         exit(EXIT_SUCCESS);
-    }
-    else
-    {
+    } else {
         waitpid(pid, &status, 0);
-        if (WIFEXITED(status))
-        {
+        if (WIFEXITED(status)) {
             printf("DEBUG: Child exited with status %d\n", WEXITSTATUS(status));
         }
     }
@@ -156,12 +142,11 @@ int handle_command(int socket, char *buffer)
     string_array_free(args);
 
     size_t read_total = 0;
-    char *solution_buffer = read_all(pipefd[PIPE_READ_END], &read_total);
+    char* solution_buffer = read_all(pipefd[PIPE_READ_END], &read_total);
 
     // Send size of solution buffer to client
     ssize_t send_ret = send(socket, &read_total, sizeof(size_t), 0);
-    if (send_ret == -1)
-    {
+    if (send_ret == -1) {
         free(program_name);
         free(solution_buffer);
         string_array_free(args);
@@ -171,8 +156,7 @@ int handle_command(int socket, char *buffer)
 
     // Send solution data to client
     int ret = write_full(socket, solution_buffer, read_total);
-    if (ret == -1)
-    {
+    if (ret == -1) {
         free(program_name);
         free(solution_buffer);
         string_array_free(args);
