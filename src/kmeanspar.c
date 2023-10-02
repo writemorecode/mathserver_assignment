@@ -64,7 +64,7 @@ point_array_t* read_data(char* filename)
     char line[256] = { 0 };
     char* p_line;
     point_t* p_point;
-    int i = 0;
+    size_t i = 0;
     while ((p_line = fgets(line, 256, fp)) != NULL) {
         if (points->capacity == i) {
             p_point = realloc(points->data, sizeof(point_t) * points->capacity * 2);
@@ -304,7 +304,7 @@ void write_results(point_array_t* points)
 int main(int argc, char** argv)
 {
     char* filename = NULL;
-    size_t k = 9;
+    int k = 9;
 
     int opt;
     while ((opt = getopt(argc, argv, "f:k:")) != -1) {
