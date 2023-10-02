@@ -12,7 +12,7 @@ def main():
     with open("kmeans-data.txt", "w") as fh:
         for sample in X:
             x, y = sample
-            fh.write(f"{x}\t{y}\n")
+            fh.write(f"{x:.3f}\t{y:.3f}\n")
 
 
 if __name__ == "__main__":
