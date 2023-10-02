@@ -20,8 +20,6 @@ void string_array_free(struct string_array* arr)
     for (size_t i = 0; i < arr->size; i++) {
         free(arr->data[i]);
     }
-    // Free the terminating NULL pointer at end of array.
-    //// free(arr->data[arr->size]);
     free(arr->data);
     free(arr);
 }

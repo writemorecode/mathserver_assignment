@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -Wall -Werror -Wextra -pedantic -ggdb3 -O2
+CFLAGS = -Wall -Werror -Wextra -pedantic -ggdb3 -O2 -fsanitize=address
 
-all: server client matinvpar kmeanspar
+all: server client matinvpar kmeanspar 
 
 clean:
 	rm -f server client kmeanspar matinvpar test *.so *.o computed_results/*.txt

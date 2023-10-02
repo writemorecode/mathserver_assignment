@@ -171,7 +171,6 @@ int handle_command(int socket, char* command)
         perror("recv");
         return EXIT_FAILURE;
     }
-    printf("DEBUG: solution length: %ld\n", solution_length);
 
     // Recieve solution data
     char* solution_buffer = read_full(socket, solution_length);

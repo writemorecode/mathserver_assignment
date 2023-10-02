@@ -69,7 +69,7 @@ int handle_command(int socket, char* buffer)
         }
 
         // We create a temporary file that will be used as the input file for kmeanspar
-        char template[] = "kmeans-data-XXXXXX";
+        char *template = strdup("kmeans-data-XXXXXX");
         int temp_fd = mkstemp(template);
         if (temp_fd == -1) {
             free(program_name);
@@ -95,17 +95,10 @@ int handle_command(int socket, char* buffer)
             if (strcmp(args->data[i], "-f") == 0 && args->size > i + 1) {
                 free(args->data[i + 1]);
                 args->data[i + 1] = template;
+                break;
             }
         }
     }
-
-    // Append "./" to the program name, so that it can be found by execvp
-    char *dot_slash = strdup("./");
-    free(args->data[0]);
-    args->data[0] = append_string(dot_slash, program_name);
-    free(program_name);
-
-    fprintf(stdout, "debug: arg[0] '%s'\n", args->data[0]);
 
     int pipefd[2];
     int status = pipe(pipefd);
@@ -123,17 +116,35 @@ int handle_command(int socket, char* buffer)
         dup2(pipefd[PIPE_WRITE_END], STDOUT_FILENO);
         close(pipefd[PIPE_WRITE_END]);
 
+        // Append "./" to the program name, so that it can be found by execvp
+        size_t program_name_length = strlen(args->data[0]);
+        size_t dot_slash_length = 2;
+        char *program_name_with_dot_slash = calloc(dot_slash_length + program_name_length + 1, sizeof(char));
+        memcpy(program_name_with_dot_slash , "./", dot_slash_length);
+        memcpy(program_name_with_dot_slash + dot_slash_length, args->data[0], program_name_length);
+        free(args->data[0]);
+        args->data[0] = program_name_with_dot_slash;
+
         int ret = execvp(args->data[0], args->data);
-        string_array_free(args);
         if (ret == -1) {
             perror("execvp");
             exit(EXIT_FAILURE);
         }
+
+        string_array_free(args);
+
         exit(EXIT_SUCCESS);
     } else {
-        waitpid(pid, &status, 0);
+        if (waitpid(pid, &status, 0) == -1) {
+            perror("waitpid");
+            exit(EXIT_FAILURE);
+        }
         if (WIFEXITED(status)) {
-            printf("DEBUG: Child exited with status %d\n", WEXITSTATUS(status));
+            int exit_status = WEXITSTATUS(status);
+            if (exit_status != 0) {
+                printf("Error: Child process returned with exit code %d.\n", exit_status);
+                exit(EXIT_FAILURE);
+            }
         }
     }
 
