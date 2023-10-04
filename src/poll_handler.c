@@ -22,7 +22,7 @@ void poll_strategy(int server_socket)
     struct sockaddr_storage client_addr;
     socklen_t client_addr_size;
 
-    struct pfd_array* arr = pfd_array_new(2);
+    struct pfd_array* arr = pfd_array_new();
     pfd_array_insert(arr, server_socket);
 
     while (true) {
