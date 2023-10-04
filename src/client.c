@@ -97,10 +97,8 @@ int get_connect_socket(char* host, char* port)
 
 int handle_command(int socket, char* command)
 {
+    strip_newline_from_end(command);
     size_t send_len = strlen(command);
-    if (command[send_len - 1] == '\n') {
-        command[send_len - 1] = 0;
-    }
 
     char* program_name = get_program_name(command);
 

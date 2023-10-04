@@ -20,28 +20,6 @@ char* random_alphanumeric_string(const size_t len)
     return s;
 }
 
-/*
-    Returns a newly allocated string containing
-    the string "str" prepended with "prefix".
-*/
-void prepend_string(char* str, const char* prefix)
-{
-    if (str == NULL || prefix == NULL) {
-        return;
-    }
-    const size_t str_len = strlen(str);
-    const size_t prefix_len = strlen(prefix);
-
-    for (size_t i = 0; i < str_len; i++) {
-        for (size_t j = 0; j < prefix_len; j++) {
-            str[str_len + j - i] = str[str_len - 1 - i];
-        }
-    }
-
-    for (size_t i = 0; i < prefix_len; i++) {
-        str[i] = prefix[i];
-    }
-}
 
 /*
     Removes a newline character from the end of "s".
@@ -63,7 +41,7 @@ void strip_newline_from_end(char* s)
     "matinvpar -n 4" or "kmeanspar -k 3 -f kmeans-data.txt",
     returns the name of the program, or NULL if not found.
 */
-char* get_program_name(char* command)
+char* get_program_name(const char* command)
 {
     if (command == NULL) {
         return NULL;
@@ -104,28 +82,3 @@ bool string_has_prefix(const char* str, const char* prefix)
     return false;
 }
 
-char* append_string(char* s, char* suffix)
-{
-    if (s == NULL || suffix == NULL)
-    {
-        return NULL;
-    }
-    const size_t suffix_len = strlen(suffix);
-
-    if (suffix_len == 0) {
-        return s;
-    }
-
-    const size_t s_len = strlen(s);
-    const size_t n = s_len + suffix_len;
-
-    void *p = realloc(s, n + 1);
-    if (p == NULL)
-    {
-        return NULL;
-    }
-    s = p;
-    memcpy(s + s_len, suffix, suffix_len);
-    s[n] = 0;
-    return s;
-}
