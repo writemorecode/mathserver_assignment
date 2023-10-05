@@ -26,7 +26,7 @@ void poll_strategy(int server_socket)
     pfd_array_insert(arr, server_socket);
 
     while (true) {
-        if (poll(arr->data, arr->count, -1) == -1) {
+        if (poll(arr->data, arr->count, -1) == -1 && errno != EINTR) {
             perror("poll");
             break;
         }
@@ -61,6 +61,7 @@ void poll_strategy(int server_socket)
                 } else {
                     char* command = receive_command(fd);
                     if (command == NULL) {
+                        pfd_array_remove(arr, i);
                         continue;
                     }
                     handle_command(fd, command);

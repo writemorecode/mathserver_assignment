@@ -117,7 +117,7 @@ int main(int argc, char** argv)
             pid_t pid_grandchild = fork();
             if (pid_grandchild == 0) {
                 // Grandchild
-                printf("PID: %d\n", getppid());
+                printf("PID: %d\n", getpid());
                 run(strategy, port);
             }
             exit(EXIT_SUCCESS);

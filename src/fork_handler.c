@@ -20,6 +20,7 @@ int handle_client(int socket)
         }
 
         if (!validate_command(command)) {
+            fprintf(stderr, "Invalid command: '%s'\n", command);
             free(command);
             continue;
         }

@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Werror -Wextra -pedantic -ggdb3 -O2 -fsanitize=address
+CFLAGS = -Wall -Werror -Wextra -pedantic -ggdb3 -O2
 
 all: server client matinvpar kmeanspar 
 

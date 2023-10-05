@@ -13,8 +13,8 @@ This code handles the array of FDs used by poll()
 struct pfd_array* pfd_array_new()
 {
     struct pfd_array* p = calloc(1, sizeof(struct pfd_array));
-    p->data = calloc(1, sizeof(struct pollfd));
-    p->capacity = 1;
+    p->data = calloc(128, sizeof(struct pollfd));
+    p->capacity = 128;
     p->count = 0;
     return p;
 }

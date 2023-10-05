@@ -55,7 +55,7 @@ void epoll_strategy(int listen_socket)
 
     while (true) {
         int ready_count = epoll_wait(epfd, events, MAX_EVENTS, -1);
-        if (ready_count == -1) {
+        if (ready_count == -1 && errno != EINTR) {
             perror("epoll");
             break;
         }

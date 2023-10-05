@@ -53,6 +53,7 @@ int main(int argc, char** argv)
 {
     struct settings* settings = read_settings(argc, argv);
     if (settings == NULL) {
+        fprintf(stderr, "failed to read settings\n");
         return EXIT_FAILURE;
     }
 
@@ -73,7 +74,7 @@ int main(int argc, char** argv)
             exit(EXIT_FAILURE);
         }
     }
-
+    
     matrix_write(A);
 
     struct matrix* A_inv = matrix_inverse_parallel(A);

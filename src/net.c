@@ -59,33 +59,40 @@ int write_full(int fd, char* buffer, size_t length)
 // The number of bytes read from fd will be written to n.
 char* read_all(int fd, size_t* n)
 {
-    char* buffer = calloc(BUF_LEN, sizeof(char));
-    size_t buffer_len = BUF_LEN;
+    size_t buffer_capacity = 4096;
+    char *buffer = calloc(buffer_capacity, sizeof(char));
+    if (buffer == NULL)
+    {
+        return NULL;
+    }
     size_t read_total = 0;
-    ssize_t read_ret;
+    ssize_t read_ret = 0;
 
-    // Read from read end of pipe until read returns zero.
-    while (1) {
-        if (read_total >= buffer_len) {
-            char* ret = realloc(buffer, buffer_len * 2);
-            if (ret == NULL) {
-                perror("realloc");
-                exit(EXIT_FAILURE);
-            } else {
-                buffer = ret;
-            }
-            buffer_len *= 2;
-        }
-        read_ret = read(fd, buffer + read_total, BUF_LEN);
-        if (read_ret == -1) {
+    while(1)
+    {
+        read_ret = read(fd, buffer + read_total, buffer_capacity - read_total);
+        if (read_ret < 0)
+        {
+            free(buffer);
             perror("read");
-            break;
+            return NULL;
         }
         if (read_ret == 0) {
-            break;
+            *n = read_total;
+            return buffer;
         }
         read_total += read_ret;
+
+        if (read_total >= buffer_capacity) {
+            buffer_capacity *= 2;
+            char *p = realloc(buffer, buffer_capacity);
+            if (p == NULL)
+            {
+                free(buffer);
+                perror("realloc");
+                return NULL;
+            }
+            buffer = p;
+        }
     }
-    *n = read_total;
-    return buffer;
 }

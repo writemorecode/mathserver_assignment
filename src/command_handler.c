@@ -21,7 +21,7 @@
 
 bool validate_command(char* command)
 {
-    if (!string_has_prefix(command, "./matinvpar") && !string_has_prefix(command, "./kmeanspar")) {
+    if (!string_has_prefix(command, "matinvpar") && !string_has_prefix(command, "kmeanspar")) {
         return false;
     }
     return true;
@@ -111,11 +111,15 @@ int handle_command(int socket, char* buffer)
         perror("fork");
         return EXIT_FAILURE;
     }
+    char *solution_buffer = NULL;
+    size_t read_total = 0;
     if (pid == 0) {
         close(pipefd[PIPE_READ_END]);
         dup2(pipefd[PIPE_WRITE_END], STDOUT_FILENO);
         close(pipefd[PIPE_WRITE_END]);
 
+        // TODO: move this into a separate function e.g. args->data[0] = prepend_string(args->data[0], "./");
+        // void prepend_string(char *str, const char *prefix);
         // Append "./" to the program name, so that it can be found by execvp
         size_t program_name_length = strlen(args->data[0]);
         size_t dot_slash_length = 2;
@@ -130,30 +134,27 @@ int handle_command(int socket, char* buffer)
             perror("execvp");
             exit(EXIT_FAILURE);
         }
-
-        string_array_free(args);
-
-        exit(EXIT_SUCCESS);
     } else {
+        close(pipefd[PIPE_WRITE_END]);
+        solution_buffer = read_all(pipefd[PIPE_READ_END], &read_total);
+        close(pipefd[PIPE_READ_END]);
         if (waitpid(pid, &status, 0) == -1) {
             perror("waitpid");
+            free(solution_buffer);
             exit(EXIT_FAILURE);
         }
-        if (WIFEXITED(status)) {
-            int exit_status = WEXITSTATUS(status);
-            if (exit_status != 0) {
-                printf("Error: Child process returned with exit code %d.\n", exit_status);
+        int exit_status;
+        if (WIFEXITED(status) && (exit_status = WEXITSTATUS(status)) != 0) {
+                fprintf(stderr, "Error: Child process returned with exit code %d.\n", exit_status);
                 exit(EXIT_FAILURE);
-            }
         }
     }
 
-    close(pipefd[PIPE_WRITE_END]);
 
     string_array_free(args);
 
-    size_t read_total = 0;
-    char* solution_buffer = read_all(pipefd[PIPE_READ_END], &read_total);
+    //size_t read_total = 0;
+    //char* solution_buffer = read_all(pipefd[PIPE_READ_END], &read_total);
 
     // Send size of solution buffer to client
     ssize_t send_ret = send(socket, &read_total, sizeof(size_t), 0);
