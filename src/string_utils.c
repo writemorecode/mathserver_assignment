@@ -82,3 +82,18 @@ bool string_has_prefix(const char* str, const char* prefix)
     return false;
 }
 
+char *prepend_string(char *str, const char *prefix)
+{
+	if (str == NULL || prefix == NULL)
+	{
+		return NULL;
+	}
+	const size_t str_len = strlen(str);
+	const size_t prefix_len = strlen(prefix);
+	char *p = calloc(str_len + prefix_len + 1, sizeof(char));
+	memcpy(p, prefix, prefix_len);
+	memcpy(p + prefix_len, str, str_len);
+	free(str);
+	str = p;
+	return str;
+}

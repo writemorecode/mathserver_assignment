@@ -118,16 +118,7 @@ int handle_command(int socket, char* buffer)
         dup2(pipefd[PIPE_WRITE_END], STDOUT_FILENO);
         close(pipefd[PIPE_WRITE_END]);
 
-        // TODO: move this into a separate function e.g. args->data[0] = prepend_string(args->data[0], "./");
-        // void prepend_string(char *str, const char *prefix);
-        // Append "./" to the program name, so that it can be found by execvp
-        size_t program_name_length = strlen(args->data[0]);
-        size_t dot_slash_length = 2;
-        char *program_name_with_dot_slash = calloc(dot_slash_length + program_name_length + 1, sizeof(char));
-        memcpy(program_name_with_dot_slash , "./", dot_slash_length);
-        memcpy(program_name_with_dot_slash + dot_slash_length, args->data[0], program_name_length);
-        free(args->data[0]);
-        args->data[0] = program_name_with_dot_slash;
+		args->data[0] = prepend_string(args->data[0], "./");
 
         int ret = execvp(args->data[0], args->data);
         if (ret == -1) {
@@ -150,11 +141,7 @@ int handle_command(int socket, char* buffer)
         }
     }
 
-
     string_array_free(args);
-
-    //size_t read_total = 0;
-    //char* solution_buffer = read_all(pipefd[PIPE_READ_END], &read_total);
 
     // Send size of solution buffer to client
     ssize_t send_ret = send(socket, &read_total, sizeof(size_t), 0);
